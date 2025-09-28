@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-AI Social Media Platform - Professional UI Redesign
-==================================================
-Enhanced with modern design, better UX, and professional styling
+AI Social Media Platform - Modern Professional UI
+================================================
+Enhanced with cutting-edge design, improved UX, and contemporary styling
 """
 
 import streamlit as st
@@ -20,84 +20,122 @@ from plotly.subplots import make_subplots
 
 # Set page config FIRST
 st.set_page_config(
-    page_title="🤖 AI Social Media Platform",
-    page_icon="🚀", 
+    page_title="AI Social Media Platform",
+    page_icon="🤖", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Modern Professional CSS
+# Modern Professional CSS - Completely Redesigned
 st.markdown("""
 <style>
-    /* Hide Streamlit branding and improve overall design */
+    /* Import modern fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    /* Hide Streamlit branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
+    /* Global styling overrides */
+    html, body, [class*="css"] {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    
     /* Main container improvements */
     .main .block-container {
-        padding-top: 2rem;
+        padding-top: 1rem;
         padding-bottom: 2rem;
-        max-width: 1200px;
+        max-width: 1400px;
     }
     
-    /* Professional header styling */
-    .main-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 3rem 2rem;
-        border-radius: 20px;
+    /* Modern header styling */
+    .modern-header {
+        background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #7c3aed 100%);
+        padding: 2rem;
+        border-radius: 16px;
         color: white;
-        text-align: center;
         margin-bottom: 2rem;
-        box-shadow: 0 20px 40px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 20px 40px rgba(59, 130, 246, 0.3);
         border: 1px solid rgba(255, 255, 255, 0.1);
+        position: relative;
+        overflow: hidden;
     }
     
-    .main-header h1 {
-        font-size: 3rem;
-        font-weight: 700;
-        margin-bottom: 1rem;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    .modern-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="80" cy="40" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="40" cy="80" r="1.5" fill="rgba(255,255,255,0.1)"/></svg>');
+        opacity: 0.6;
     }
     
-    .main-header p {
-        font-size: 1.3rem;
-        opacity: 0.95;
-        margin-bottom: 1.5rem;
-        font-weight: 300;
-    }
-    
-    /* Modern status badge */
-    .status-badge {
-        background: rgba(40, 167, 69, 0.15);
-        backdrop-filter: blur(10px);
-        padding: 12px 24px;
-        border-radius: 30px;
-        border: 1px solid rgba(40, 167, 69, 0.3);
-        display: inline-flex;
+    .header-content {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        justify-content: space-between;
         align-items: center;
-        gap: 8px;
+    }
+    
+    .header-left h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 0 0 0.5rem 0;
+        background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .header-left p {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin: 0;
+        font-weight: 400;
+    }
+    
+    .header-right {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: flex-end;
+    }
+    
+    .status-badge {
+        background: rgba(34, 197, 94, 0.15);
+        backdrop-filter: blur(10px);
+        padding: 8px 16px;
+        border-radius: 20px;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.85rem;
         font-weight: 500;
+        color: #dcfce7;
     }
     
     .status-dot {
-        width: 8px;
-        height: 8px;
-        background: #28a745;
+        width: 6px;
+        height: 6px;
+        background: #22c55e;
         border-radius: 50%;
         animation: pulse-dot 2s infinite;
     }
     
     @keyframes pulse-dot {
-        0% { opacity: 1; }
-        50% { opacity: 0.5; }
-        100% { opacity: 1; }
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.7; transform: scale(1.2); }
     }
     
     /* Enhanced sidebar styling */
-    .css-1d391kg {
-        background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%);
-        border-right: 1px solid #e9ecef;
+    .css-1d391kg, .css-1cypcdb {
+        background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+        border-right: 1px solid #e2e8f0;
     }
     
     /* Sidebar sections */
@@ -105,138 +143,157 @@ st.markdown("""
         background: white;
         padding: 1.5rem;
         border-radius: 12px;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        border: 1px solid #e9ecef;
+        margin-bottom: 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
+        transition: all 0.3s ease;
+    }
+    
+    .sidebar-section:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border-color: #3b82f6;
     }
     
     .sidebar-section h3 {
-        color: #495057;
-        font-size: 1.1rem;
+        color: #1e293b;
+        font-size: 1rem;
         font-weight: 600;
         margin-bottom: 1rem;
         padding-bottom: 0.5rem;
-        border-bottom: 2px solid #667eea;
+        border-bottom: 2px solid #3b82f6;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
     
-    /* Modern metrics cards */
+    /* Ultra-modern metrics cards */
     .metric-card {
         background: white;
         padding: 2rem 1.5rem;
         border-radius: 16px;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.06);
-        border: 1px solid #e9ecef;
-        transition: all 0.3s ease;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         height: 100%;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s ease;
+    }
+    
+    .metric-card:hover::before {
+        transform: scaleX(1);
     }
     
     .metric-card:hover {
         transform: translateY(-4px);
-        box-shadow: 0 12px 32px rgba(0,0,0,0.12);
-        border-color: #667eea;
+        box-shadow: 0 8px 25px rgba(59, 130, 246, 0.15);
+        border-color: #3b82f6;
     }
     
     .metric-icon {
-        font-size: 2rem;
-        margin-bottom: 0.5rem;
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        color: #3b82f6;
     }
     
     .metric-value {
-        font-size: 2.5rem;
+        font-size: 2.25rem;
         font-weight: 700;
-        color: #212529;
+        color: #0f172a;
         margin: 0.5rem 0;
+        line-height: 1;
     }
     
     .metric-label {
-        color: #6c757d;
-        font-size: 0.9rem;
+        color: #64748b;
+        font-size: 0.875rem;
         font-weight: 500;
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        margin-bottom: 0.5rem;
     }
     
     .metric-delta {
-        color: #28a745;
-        font-size: 0.85rem;
+        color: #059669;
+        font-size: 0.8rem;
         font-weight: 600;
-        margin-top: 0.5rem;
+        background: #d1fae5;
+        padding: 2px 8px;
+        border-radius: 12px;
+        display: inline-block;
     }
     
-    /* Professional tabs */
+    /* Enhanced tabs styling */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background: #f8f9fa;
-        padding: 8px;
+        gap: 4px;
+        background: #f1f5f9;
+        padding: 4px;
         border-radius: 12px;
-        border: 1px solid #e9ecef;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 2rem;
     }
     
     .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        padding: 0px 24px;
+        height: 48px;
+        padding: 0px 20px;
         background: transparent;
         border-radius: 8px;
-        color: #6c757d;
+        color: #64748b;
         font-weight: 500;
         border: none;
-        transition: all 0.3s ease;
+        transition: all 0.2s ease;
+        font-size: 0.9rem;
     }
     
     .stTabs [aria-selected="true"] {
         background: white;
-        color: #667eea;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        border: 1px solid #e9ecef;
+        color: #3b82f6;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border: 1px solid #e2e8f0;
+        font-weight: 600;
     }
     
-    /* Enhanced buttons */
+    /* Modern buttons */
     .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
         color: white;
         border: none;
-        border-radius: 10px;
+        border-radius: 8px;
         padding: 0.75rem 1.5rem;
         font-weight: 600;
-        font-size: 0.95rem;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
+        font-family: 'Inter', sans-serif;
     }
     
     .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
     }
     
     .stButton > button:active {
         transform: translateY(0px);
-    }
-    
-    /* Action buttons styling */
-    .action-btn {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 12px;
-        padding: 1rem 1.5rem;
-        font-weight: 600;
-        font-size: 1rem;
-        transition: all 0.3s ease;
-        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.3);
-        width: 100%;
-        margin: 0.5rem 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-    }
-    
-    .action-btn:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 24px rgba(102, 126, 234, 0.4);
     }
     
     /* Content cards */
@@ -244,73 +301,87 @@ st.markdown("""
         background: white;
         border-radius: 16px;
         padding: 2rem;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.06);
-        border: 1px solid #e9ecef;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
         margin-bottom: 1.5rem;
         transition: all 0.3s ease;
     }
     
     .content-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 32px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border-color: #3b82f6;
     }
     
     .content-card h3 {
-        color: #495057;
-        font-size: 1.4rem;
+        color: #1e293b;
+        font-size: 1.25rem;
         font-weight: 600;
         margin-bottom: 1.5rem;
         padding-bottom: 0.75rem;
-        border-bottom: 2px solid #f8f9fa;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
     
-    /* Form styling */
-    .stTextInput > div > div > input {
+    /* Enhanced form styling */
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea {
         border-radius: 8px;
-        border: 2px solid #e9ecef;
+        border: 2px solid #e2e8f0;
         padding: 0.75rem;
-        font-size: 1rem;
-        transition: all 0.3s ease;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+        font-family: 'Inter', sans-serif;
     }
     
-    .stTextInput > div > div > input:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    .stTextInput > div > div > input:focus,
+    .stTextArea > div > div > textarea:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        outline: none;
     }
     
     .stSelectbox > div > div > div {
         border-radius: 8px;
-        border: 2px solid #e9ecef;
+        border: 2px solid #e2e8f0;
+        transition: all 0.2s ease;
     }
     
     /* Alert styles */
-    .success-alert {
-        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-        color: #155724;
+    .modern-success {
+        background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+        color: #166534;
         padding: 1rem 1.5rem;
         border-radius: 12px;
-        border-left: 4px solid #28a745;
+        border-left: 4px solid #22c55e;
         margin: 1rem 0;
         font-weight: 500;
-        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.15);
+        box-shadow: 0 1px 3px rgba(34, 197, 94, 0.1);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
     
-    .info-alert {
-        background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
-        color: #0c5460;
+    .modern-info {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        color: #1e40af;
         padding: 1rem 1.5rem;
         border-radius: 12px;
-        border-left: 4px solid #17a2b8;
+        border-left: 4px solid #3b82f6;
         margin: 1rem 0;
         font-weight: 500;
-        box-shadow: 0 4px 12px rgba(23, 162, 184, 0.15);
+        box-shadow: 0 1px 3px rgba(59, 130, 246, 0.1);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
     
     /* Platform badges */
     .platform-badge {
-        padding: 6px 12px;
-        border-radius: 20px;
-        font-size: 0.8rem;
+        padding: 4px 12px;
+        border-radius: 16px;
+        font-size: 0.75rem;
         font-weight: 600;
         color: white;
         margin: 2px;
@@ -319,8 +390,8 @@ st.markdown("""
         letter-spacing: 0.5px;
     }
     
-    .badge-twitter { background: linear-gradient(135deg, #1da1f2 0%, #0d8bd9 100%); }
-    .badge-instagram { background: linear-gradient(135deg, #e1306c 0%, #c13584 100%); }
+    .badge-twitter { background: linear-gradient(135deg, #1d9bf0 0%, #1a91da 100%); }
+    .badge-instagram { background: linear-gradient(135deg, #e4405f 0%, #c13584 100%); }
     .badge-facebook { background: linear-gradient(135deg, #1877f2 0%, #166fe5 100%); }
     .badge-linkedin { background: linear-gradient(135deg, #0a66c2 0%, #004182 100%); }
     
@@ -330,53 +401,29 @@ st.markdown("""
         border-radius: 12px;
         padding: 1.5rem;
         margin-bottom: 1rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        border: 1px solid #e9ecef;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
         transition: all 0.3s ease;
     }
     
     .generated-post:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border-color: #3b82f6;
     }
     
     .post-content {
-        font-size: 1rem;
+        font-size: 0.95rem;
         line-height: 1.6;
-        color: #495057;
+        color: #374151;
         margin: 1rem 0;
     }
     
     .post-hashtags {
-        color: #667eea;
+        color: #3b82f6;
         font-weight: 500;
         margin: 0.75rem 0;
-    }
-    
-    .post-actions {
-        display: flex;
-        gap: 8px;
-        margin-top: 1rem;
-    }
-    
-    .post-btn {
-        padding: 8px 16px;
-        border: none;
-        border-radius: 6px;
-        font-size: 0.85rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        flex: 1;
-    }
-    
-    .btn-schedule { background: #28a745; color: white; }
-    .btn-post { background: #dc3545; color: white; }
-    .btn-edit { background: #6c757d; color: white; }
-    
-    .post-btn:hover {
-        transform: translateY(-1px);
-        opacity: 0.9;
+        font-size: 0.9rem;
     }
     
     /* Campaign cards */
@@ -385,92 +432,68 @@ st.markdown("""
         border-radius: 12px;
         padding: 1.5rem;
         margin-bottom: 1rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        border: 1px solid #e9ecef;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
         transition: all 0.3s ease;
     }
     
     .campaign-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-    }
-    
-    .campaign-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border-color: #3b82f6;
     }
     
     .campaign-name {
         font-size: 1.1rem;
         font-weight: 600;
-        color: #495057;
+        color: #1e293b;
     }
     
     .campaign-status {
         padding: 4px 12px;
         border-radius: 12px;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
     
-    .status-running { background: #d4edda; color: #155724; }
-    .status-planning { background: #fff3cd; color: #856404; }
+    .status-running { 
+        background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); 
+        color: #166534; 
+    }
+    .status-planning { 
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); 
+        color: #92400e; 
+    }
     
-    /* Progress bar styling */
+    /* Enhanced progress bar */
     .progress-container {
-        background: #f8f9fa;
-        border-radius: 10px;
-        height: 8px;
+        background: #f1f5f9;
+        border-radius: 8px;
+        height: 6px;
         margin: 1rem 0;
         overflow: hidden;
     }
     
     .progress-bar {
         height: 100%;
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-        border-radius: 10px;
+        background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
+        border-radius: 8px;
         transition: width 1s ease;
         position: relative;
     }
     
-    .progress-bar::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        bottom: 0;
-        right: 0;
-        background-image: linear-gradient(
-            -45deg,
-            rgba(255, 255, 255, .2) 25%,
-            transparent 25%,
-            transparent 50%,
-            rgba(255, 255, 255, .2) 50%,
-            rgba(255, 255, 255, .2) 75%,
-            transparent 75%,
-            transparent
-        );
-        background-size: 30px 30px;
-        animation: move 2s linear infinite;
-    }
-    
-    @keyframes move {
-        0% { background-position: 0 0; }
-        100% { background-position: 30px 30px; }
-    }
-    
     /* Responsive design */
     @media (max-width: 768px) {
-        .main-header h1 {
-            font-size: 2rem;
+        .header-content {
+            flex-direction: column;
+            gap: 1rem;
+            text-align: center;
         }
         
-        .main-header p {
-            font-size: 1rem;
+        .header-left h1 {
+            font-size: 2rem;
         }
         
         .metric-card {
@@ -482,13 +505,13 @@ st.markdown("""
         }
     }
     
-    /* Loading spinner */
+    /* Loading states */
     .loading-spinner {
-        border: 3px solid #f3f3f3;
-        border-top: 3px solid #667eea;
+        border: 2px solid #f3f4f6;
+        border-top: 2px solid #3b82f6;
         border-radius: 50%;
-        width: 20px;
-        height: 20px;
+        width: 16px;
+        height: 16px;
         animation: spin 1s linear infinite;
         display: inline-block;
         margin-right: 8px;
@@ -497,6 +520,51 @@ st.markdown("""
     @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
+    }
+    
+    /* Quick action buttons */
+    .quick-action-btn {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-align: left;
+        width: 100%;
+    }
+    
+    .quick-action-btn:hover {
+        background: #f8fafc;
+        border-color: #3b82f6;
+        transform: translateX(2px);
+    }
+    
+    .quick-action-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+    
+    .quick-action-content h4 {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    
+    .quick-action-content p {
+        margin: 0;
+        font-size: 0.8rem;
+        color: #64748b;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -581,7 +649,6 @@ class ContentGenerator:
             template = random.choice(self.templates[platform_key])
             content = template.format(topic=topic)
             
-            # Enhanced hashtag generation
             base_hashtags = [f"#{topic.replace(' ', '')}", "#AI", "#Innovation", "#Technology", "#Digital"]
             platform_hashtags = {
                 'twitter': ["#TechTalk", "#Innovation", "#AIRevolution"],
@@ -599,7 +666,7 @@ class ContentGenerator:
                 'char_count': len(content),
                 'platform': platform,
                 'topic': topic,
-                'engagement_prediction': random.choice(['Very High', 'High', 'High', 'Medium'])  # Weighted towards positive
+                'engagement_prediction': random.choice(['Very High', 'High', 'High', 'Medium'])
             }
         except Exception as e:
             return {
@@ -615,7 +682,6 @@ class ContentGenerator:
 # Enhanced data functions
 def create_analytics_data():
     dates = pd.date_range(start='2024-01-01', end='2024-01-30', freq='D')
-    # More realistic data with trends
     base_twitter = 150
     base_instagram = 250
     base_facebook = 120
@@ -640,10 +706,10 @@ def create_platform_data():
 
 # Utility functions
 def show_success(message: str):
-    st.markdown(f'<div class="success-alert">✅ {message}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="modern-success">✅ {message}</div>', unsafe_allow_html=True)
 
 def show_info(message: str):
-    st.markdown(f'<div class="info-alert">ℹ️ {message}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="modern-info">ℹ️ {message}</div>', unsafe_allow_html=True)
 
 def create_metric_card(icon: str, label: str, value: str, delta: str):
     return f"""
@@ -660,19 +726,29 @@ def main():
     init_session_state()
     get_database_connection()
     
-    # Professional Header
+    # Modern Professional Header
     st.markdown("""
-    <div class="main-header">
-        <h1>🤖 AI Social Media Platform</h1>
-        <p>Professional Content Generation & Marketing Automation</p>
-        <div class="status-badge">
-            <div class="status-dot"></div>
-            System Online • Auto-posting Active
+    <div class="modern-header">
+        <div class="header-content">
+            <div class="header-left">
+                <h1>🤖 AI Social Media Platform</h1>
+                <p>Professional Content Generation & Marketing Automation</p>
+            </div>
+            <div class="header-right">
+                <div class="status-badge">
+                    <div class="status-dot"></div>
+                    System Online
+                </div>
+                <div class="status-badge">
+                    <div class="status-dot"></div>
+                    Auto-posting Active
+                </div>
+            </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
     
-    # Enhanced Sidebar with better organization
+    # Enhanced Sidebar with modern design
     with st.sidebar:
         st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
         st.markdown("### 🔑 API Configuration")
@@ -685,9 +761,9 @@ def main():
         )
         
         if api_key == "demo":
-            st.success("✅ Demo mode active")
+            show_success("Demo mode active")
         elif api_key:
-            st.success("✅ API key configured")
+            show_success("API key configured")
         else:
             st.warning("⚠️ API key required")
         
@@ -739,29 +815,7 @@ def main():
         }
         
         active_count = sum(platforms.values())
-        st.info(f"📊 {active_count}/4 platforms active")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Automation Section
-        st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
-        st.markdown("### 🤖 Automation Control")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("🔄 Toggle Auto", help="Start/stop automation"):
-                st.session_state.automation_active = not st.session_state.automation_active
-                if st.session_state.automation_active:
-                    show_success("Automation activated!")
-                else:
-                    show_info("Automation paused!")
-        
-        with col2:
-            if st.button("📊 Quick Stats", help="View quick statistics"):
-                show_info(f"Generated {st.session_state.posts_generated_today} posts today")
-        
-        status = "🟢 Active" if st.session_state.automation_active else "🔴 Paused"
-        st.markdown(f"**Status:** {status}")
+        show_info(f"📊 {active_count}/4 platforms active")
         
         st.markdown('</div>', unsafe_allow_html=True)
     
@@ -792,12 +846,12 @@ def main():
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Enhanced Tabs with better content
+    # Enhanced Tabs
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "🚀 Dashboard", "📝 Content Studio", "📊 Analytics Hub", "🎯 Campaign Manager", "⏰ Smart Scheduler"
     ])
     
-    # Dashboard Tab - Enhanced
+    # Dashboard Tab
     with tab1:
         st.markdown('<div class="content-card">', unsafe_allow_html=True)
         st.markdown("### 🎯 Quick Actions Center")
@@ -840,15 +894,10 @@ def main():
                 with st.spinner("Refreshing connections..."):
                     time.sleep(1)
                     show_success("All platform connections refreshed!")
-            
-            if st.button("📊 Run Performance Scan", use_container_width=True):
-                with st.spinner("Analyzing performance..."):
-                    time.sleep(2)
-                    show_info("Performance scan complete! All systems optimal.")
         
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # Content Studio Tab - Major Enhancement
+    # Content Studio Tab
     with tab2:
         st.markdown('<div class="content-card">', unsafe_allow_html=True)
         st.markdown("### 🎨 AI Content Studio")
@@ -858,7 +907,6 @@ def main():
         with col1:
             st.markdown("#### Create New Content")
             
-            # Enhanced content creation form
             with st.form("content_creation_form", clear_on_submit=False):
                 topic = st.text_input(
                     "Content Topic", 
@@ -881,7 +929,6 @@ def main():
                         help="Select the content style"
                     )
                 
-                # Enhanced scheduling with proper date picker
                 st.markdown("#### 📅 Scheduling Options")
                 schedule_option = st.radio(
                     "When to post:",
@@ -919,7 +966,6 @@ def main():
                             generator = ContentGenerator(api_key)
                             content = generator.generate_content(topic, platform, tone)
                             
-                            # Create post object with enhanced data
                             new_post = {
                                 'id': str(uuid.uuid4()),
                                 'platform': platform,
@@ -949,7 +995,6 @@ def main():
                         f"{post['platform']} - {post['topic']}", 
                         expanded=(i==0)
                     ):
-                        # Platform badge
                         platform_class = f"badge-{post['platform'].lower()}"
                         st.markdown(f'<span class="platform-badge {platform_class}">{post["platform"]}</span>', unsafe_allow_html=True)
                         
@@ -965,7 +1010,6 @@ def main():
                         with col_style:
                             st.metric("Content Style", post.get('style', 'Standard'))
                         
-                        # Action buttons
                         col_a, col_b, col_c = st.columns(3)
                         with col_a:
                             if st.button("📅 Schedule", key=f"sched_{post['id']}", use_container_width=True):
@@ -977,21 +1021,16 @@ def main():
                             if st.button("✏️ Edit", key=f"edit_{post['id']}", use_container_width=True):
                                 show_info("Edit mode activated!")
             else:
-                st.info("👆 Generate your first piece of content to see it here!")
-                st.markdown("**Tips for great content:**")
-                st.markdown("• Use specific, trending topics")
-                st.markdown("• Choose the right platform for your audience")
-                st.markdown("• Experiment with different content styles")
+                show_info("Generate your first piece of content to see it here!")
         
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # Analytics Hub Tab - Enhanced
+    # Analytics Hub Tab
     with tab3:
         st.markdown('<div class="content-card">', unsafe_allow_html=True)
         st.markdown("### 📊 Advanced Analytics Dashboard")
         
         try:
-            # Enhanced engagement trends
             st.markdown("#### 📈 Engagement Trends Analysis")
             engagement_data = create_analytics_data()
             
@@ -1010,17 +1049,16 @@ def main():
             fig.update_layout(
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#495057'),
+                font=dict(color='#374151'),
                 title_font_size=16,
                 height=400
             )
             st.plotly_chart(fig, use_container_width=True)
             
-            # Platform comparison with enhanced metrics
             col1, col2 = st.columns(2)
             
             with col1:
-                st.markdown("#### 🏆 Platform Performance Comparison")
+                st.markdown("#### 🏆 Platform Performance")
                 platform_data = create_platform_data()
                 
                 fig_bar = px.bar(
@@ -1039,7 +1077,7 @@ def main():
                 fig_bar.update_layout(
                     plot_bgcolor='rgba(0,0,0,0)',
                     paper_bgcolor='rgba(0,0,0,0)',
-                    font=dict(color='#495057'),
+                    font=dict(color='#374151'),
                     showlegend=False,
                     height=350
                 )
@@ -1062,40 +1100,17 @@ def main():
                 fig_pie.update_layout(
                     plot_bgcolor='rgba(0,0,0,0)',
                     paper_bgcolor='rgba(0,0,0,0)',
-                    font=dict(color='#495057'),
+                    font=dict(color='#374151'),
                     height=350
                 )
                 st.plotly_chart(fig_pie, use_container_width=True)
-            
-            # Enhanced top content table
-            st.markdown("#### 🔥 Top Performing Content")
-            top_posts_data = {
-                'Platform': ['Instagram', 'Twitter', 'LinkedIn', 'Facebook', 'Instagram'],
-                'Content': [
-                    "AI innovation showcase - behind the scenes 🚀",
-                    "5 productivity tips that changed my workflow ⚡",
-                    "Industry insight: The future of remote work 💼",
-                    "Community poll: What's your favorite AI tool? 🤖",
-                    "Tech trends 2024 - complete visual guide 📊"
-                ],
-                'Engagement': [847, 623, 445, 387, 356],
-                'Reach': [12500, 8900, 6700, 5400, 4800],
-                'Date': ['Jan 28', 'Jan 27', 'Jan 26', 'Jan 25', 'Jan 24']
-            }
-            
-            df_styled = pd.DataFrame(top_posts_data)
-            st.dataframe(
-                df_styled,
-                use_container_width=True,
-                hide_index=True
-            )
                 
         except Exception as e:
             st.error(f"Analytics error: {e}")
         
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # Campaign Manager Tab - Enhanced
+    # Campaign Manager Tab
     with tab4:
         st.markdown('<div class="content-card">', unsafe_allow_html=True)
         st.markdown("### 🎯 Advanced Campaign Management")
@@ -1123,22 +1138,12 @@ def main():
                     "engagement": "2.8K",
                     "days_left": 1,
                     "roi": "+31%"
-                },
-                {
-                    "name": "Tech Trends 2024", 
-                    "status": "Planning", 
-                    "progress": 25, 
-                    "posts": "5/20", 
-                    "engagement": "1.1K",
-                    "days_left": 7,
-                    "roi": "+15%"
                 }
             ]
             
             for campaign in campaigns:
                 st.markdown('<div class="campaign-card">', unsafe_allow_html=True)
                 
-                # Campaign header
                 col_name, col_status = st.columns([2, 1])
                 with col_name:
                     st.markdown(f'<div class="campaign-name">{campaign["name"]}</div>', unsafe_allow_html=True)
@@ -1146,7 +1151,6 @@ def main():
                     status_class = "status-running" if campaign["status"] == "Running" else "status-planning"
                     st.markdown(f'<span class="campaign-status {status_class}">🟢 {campaign["status"]}</span>', unsafe_allow_html=True)
                 
-                # Progress bar
                 progress_html = f'''
                 <div class="progress-container">
                     <div class="progress-bar" style="width: {campaign["progress"]}%;"></div>
@@ -1154,7 +1158,6 @@ def main():
                 '''
                 st.markdown(progress_html, unsafe_allow_html=True)
                 
-                # Campaign metrics
                 col_a, col_b, col_c, col_d = st.columns(4)
                 with col_a:
                     st.metric("Posts", campaign['posts'])
@@ -1171,25 +1174,11 @@ def main():
             st.markdown("#### ➕ Create New Campaign")
             
             with st.form("campaign_creation_form"):
-                campaign_name = st.text_input(
-                    "Campaign Name",
-                    placeholder="e.g., Summer Product Launch"
-                )
-                
-                campaign_objective = st.selectbox(
-                    "Campaign Objective",
-                    ["Brand Awareness", "Lead Generation", "Engagement", "Traffic", "Sales"]
-                )
-                
+                campaign_name = st.text_input("Campaign Name", placeholder="e.g., Summer Product Launch")
+                campaign_objective = st.selectbox("Campaign Objective", ["Brand Awareness", "Lead Generation", "Engagement", "Traffic", "Sales"])
                 campaign_duration = st.slider("Duration (days)", 1, 30, 7)
                 posts_per_day = st.slider("Posts per day", 1, 8, 3)
-                
-                target_platforms = st.multiselect(
-                    "Target Platforms",
-                    ["Twitter", "Instagram", "Facebook", "LinkedIn"],
-                    default=["Twitter", "Instagram"]
-                )
-                
+                target_platforms = st.multiselect("Target Platforms", ["Twitter", "Instagram", "Facebook", "LinkedIn"], default=["Twitter", "Instagram"])
                 budget = st.number_input("Budget ($)", min_value=0, value=1000, step=100)
                 
                 if st.form_submit_button("🚀 Launch Campaign", type="primary"):
@@ -1204,7 +1193,7 @@ def main():
         
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # Smart Scheduler Tab - Major Enhancement
+    # Smart Scheduler Tab
     with tab5:
         st.markdown('<div class="content-card">', unsafe_allow_html=True)
         st.markdown("### ⏰ Intelligent Content Scheduler")
@@ -1215,34 +1204,10 @@ def main():
             st.markdown("#### 📅 Upcoming Posts Queue")
             
             upcoming_posts = [
-                {
-                    "platform": "Twitter", 
-                    "content": "AI productivity tips for remote teams", 
-                    "time": "in 47 minutes",
-                    "engagement_pred": "High",
-                    "optimal": True
-                },
-                {
-                    "platform": "Instagram", 
-                    "content": "Tech innovation showcase with visuals", 
-                    "time": "in 2 hours",
-                    "engagement_pred": "Very High",
-                    "optimal": True
-                },
-                {
-                    "platform": "Facebook", 
-                    "content": "Community growth success story", 
-                    "time": "tomorrow 9:00 AM",
-                    "engagement_pred": "Medium",
-                    "optimal": True
-                },
-                {
-                    "platform": "LinkedIn", 
-                    "content": "Industry leadership insights", 
-                    "time": "tomorrow 12:00 PM",
-                    "engagement_pred": "High",
-                    "optimal": True
-                }
+                {"platform": "Twitter", "content": "AI productivity tips for remote teams", "time": "in 47 minutes", "engagement_pred": "High", "optimal": True},
+                {"platform": "Instagram", "content": "Tech innovation showcase with visuals", "time": "in 2 hours", "engagement_pred": "Very High", "optimal": True},
+                {"platform": "Facebook", "content": "Community growth success story", "time": "tomorrow 9:00 AM", "engagement_pred": "Medium", "optimal": True},
+                {"platform": "LinkedIn", "content": "Industry leadership insights", "time": "tomorrow 12:00 PM", "engagement_pred": "High", "optimal": True}
             ]
             
             for post in upcoming_posts:
@@ -1253,27 +1218,22 @@ def main():
                     
                     with col_platform:
                         st.markdown(f"**{platform_emoji[post['platform']]} {post['platform']}**")
-                    
                     with col_content:
                         st.markdown(post['content'])
-                    
                     with col_time:
                         status_icon = "⏰" if "minutes" in post['time'] or "hours" in post['time'] else "📅"
                         st.caption(f"{status_icon} {post['time']}")
-                    
                     with col_pred:
                         pred_color = {"Very High": "🟢", "High": "🟡", "Medium": "🟠"}
                         st.caption(f"{pred_color.get(post['engagement_pred'], '🔵')} {post['engagement_pred']}")
                     
                     if post['optimal']:
                         st.success("✅ Optimal timing")
-                    
                     st.markdown("---")
         
         with col2:
             st.markdown("#### ⚙️ Smart Scheduling Settings")
             
-            # Optimal times display
             st.markdown("**📊 AI-Optimized Posting Times**")
             optimal_times = {
                 "🐦 Twitter": "8AM, 12PM, 5PM, 8PM",
@@ -1285,11 +1245,7 @@ def main():
             for platform, times in optimal_times.items():
                 st.markdown(f"**{platform}:** {times}")
             
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-            # Enhanced scheduling preferences
             st.markdown("**🎯 Scheduling Preferences**")
-            
             auto_optimize = st.checkbox("🤖 AI-powered time optimization", value=True)
             avoid_weekends = st.checkbox("📅 Skip weekend posting", value=False)
             timezone_aware = st.checkbox("🌍 Timezone-aware scheduling", value=True)
@@ -1297,7 +1253,6 @@ def main():
             spread_hours = st.slider("⏰ Hours between posts", 1, 12, 2)
             max_daily_posts = st.slider("📊 Max posts per day", 1, 10, 4)
             
-            # Bulk scheduling
             st.markdown("**📋 Bulk Actions**")
             col_a, col_b = st.columns(2)
             
@@ -1313,15 +1268,15 @@ def main():
         
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # Enhanced Footer
+    # Modern Footer
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown("""
-    <div style="text-align: center; color: #6c757d; padding: 2rem; border-top: 1px solid #e9ecef; margin-top: 3rem;">
-        <p style="font-size: 1.1rem; font-weight: 500;">🤖 <strong>AI Social Media Platform</strong> v3.0</p>
+    <div style="text-align: center; color: #64748b; padding: 2rem; border-top: 1px solid #e2e8f0; margin-top: 3rem;">
+        <p style="font-size: 1.1rem; font-weight: 500;">🤖 <strong>AI Social Media Platform</strong> v4.0</p>
         <p style="font-size: 0.9rem;">Professional Content Generation & Marketing Automation | 
-        <a href="#" style="color: #667eea; text-decoration: none;">Documentation</a> | 
-        <a href="#" style="color: #667eea; text-decoration: none;">API Reference</a> | 
-        <a href="#" style="color: #667eea; text-decoration: none;">Support</a></p>
+        <a href="#" style="color: #3b82f6; text-decoration: none;">Documentation</a> | 
+        <a href="#" style="color: #3b82f6; text-decoration: none;">API Reference</a> | 
+        <a href="#" style="color: #3b82f6; text-decoration: none;">Support</a></p>
     </div>
     """, unsafe_allow_html=True)
 
