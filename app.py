@@ -165,7 +165,7 @@ const ModernSocialPlatform = () => {
                       onClick={() => setShowAIAssistant(false)}
                       className="text-gray-400 hover:text-gray-600"
                     >
-                      ×
+                      x
                     </button>
                   </div>
                   <div className="space-y-4">
