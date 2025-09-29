@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-AI Social Media Platform - Debugged and Production Ready
-=======================================================
+AI Social Media Platform - Production Ready
+==========================================
 Fully debugged with proper error handling and robust functionality
 """
 
@@ -10,8 +10,8 @@ import sqlite3
 import json
 import uuid
 import random
-import time
-from datetime import datetime, timedelta, date
+import time as time_module
+from datetime import datetime, timedelta, date, time as time_obj
 from typing import Dict, List, Optional, Any
 import pandas as pd
 import plotly.express as px
@@ -713,7 +713,7 @@ def main():
                 if st.button("✨ Generate Today's Content", type="primary", key="gen_today"):
                     try:
                         with st.spinner("🤖 AI is creating amazing content..."):
-                            time.sleep(2)
+                            time_module.sleep(2)
                             st.session_state.posts_generated_today += 8
                             show_success("Generated 8 high-quality posts across all platforms!")
                             st.balloons()
@@ -724,7 +724,7 @@ def main():
                 if st.button("🎨 Create Visual Content", key="gen_visual"):
                     try:
                         with st.spinner("🎨 Generating visual content..."):
-                            time.sleep(2)
+                            time_module.sleep(2)
                             show_success("Created 5 visual posts with AI-generated images!")
                     except Exception as e:
                         logger.error(f"Visual content error: {e}")
@@ -745,7 +745,7 @@ def main():
                 if st.button("🔄 Refresh All Connections", key="refresh_connections"):
                     try:
                         with st.spinner("Refreshing connections..."):
-                            time.sleep(1)
+                            time_module.sleep(1)
                             show_success("All platform connections refreshed!")
                     except Exception as e:
                         logger.error(f"Connection refresh error: {e}")
@@ -796,7 +796,7 @@ def main():
                         else:
                             try:
                                 with st.spinner(f"🤖 Creating {content_style.lower()} content for {platform}..."):
-                                    time.sleep(2)
+                                    time_module.sleep(2)
                                     
                                     generator = ContentGenerator(api_key)
                                     content = generator.generate_content(topic, platform, tone)
@@ -1086,7 +1086,7 @@ def main():
                         if campaign_name and target_platforms:
                             try:
                                 with st.spinner("🎯 Creating your campaign..."):
-                                    time.sleep(2)
+                                    time_module.sleep(2)
                                     show_success(f"Campaign '{campaign_name}' launched successfully!")
                                     show_info(f"📊 Will generate {campaign_duration * posts_per_day} posts over {campaign_duration} days")
                                     st.balloons()
@@ -1117,7 +1117,15 @@ def main():
                         try:
                             sched_date = datetime.fromisoformat(post['scheduled_date']).strftime('%B %d, %Y')
                             if post.get('scheduled_time'):
-                                sched_time = datetime.fromisoformat(post['scheduled_time']).strftime('%I:%M %p')
+                                # Parse time string properly - handle both formats
+                                time_str = post['scheduled_time']
+                                try:
+                                    # Try parsing with microseconds first
+                                    parsed_time = datetime.strptime(time_str, '%H:%M:%S.%f').time()
+                                except ValueError:
+                                    # Fall back to without microseconds
+                                    parsed_time = datetime.strptime(time_str, '%H:%M:%S').time()
+                                sched_time = parsed_time.strftime('%I:%M %p')
                                 full_schedule = f"{sched_date} at {sched_time}"
                             else:
                                 full_schedule = sched_date
@@ -1173,7 +1181,7 @@ def main():
                     if st.button("📅 Schedule Week", key="schedule_week"):
                         try:
                             with st.spinner("Scheduling week ahead..."):
-                                time.sleep(2)
+                                time_module.sleep(2)
                                 show_success("Week scheduled optimally!")
                         except Exception as e:
                             logger.error(f"Week scheduling error: {e}")
