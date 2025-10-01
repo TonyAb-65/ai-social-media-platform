@@ -430,7 +430,7 @@ def main():
         st.markdown("""
         <div style="padding: 1.5rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
-                <div style="width: 36px; height: 36px; background: rgba(110, 168, 254, 0.2); border: 1px solid rgba(110, 168, 254, 0.3); border-radius: 8px; display: grid; place-items-center;">
+                <div style="width: 36px; height: 36px; background: rgba(110, 168, 254, 0.2); border: 1px solid rgba(110, 168, 254, 0.3); border-radius: 8px; display: grid; place-items: center;">
                     📊
                 </div>
                 <div>
@@ -463,6 +463,10 @@ def main():
             help="Enter your OpenAI API key from https://platform.openai.com/api-keys",
             key="api_key_sidebar"
         )
+        
+        # SURGICAL FIX: Store API key in session state
+        if api_key and api_key.strip():
+            st.session_state.api_key = api_key
         
         # API Status
         if api_key and api_key.strip() and OPENAI_AVAILABLE:
@@ -703,13 +707,13 @@ def main():
             
             with col_btn1:
                 if st.button("🤖 AI Caption", use_container_width=True, key="ai_caption_btn"):
-                    if not api_key or not api_key.strip():
+                    if not st.session_state.get('api_key', ''):
                         st.error("❌ Please enter your OpenAI API key in the sidebar")
                     elif not topic or not topic.strip():
                         st.error("❌ Please enter a topic first")
                     else:
                         with st.spinner("Generating caption with GPT-4..."):
-                            generator = ContentGenerator(api_key)
+                            generator = ContentGenerator(st.session_state.get('api_key', ''))
                             content = generator.generate_content(topic, platform, "engaging")
                             st.session_state.generated_caption = content['text']
                             st.session_state.api_calls_count += 1
@@ -727,7 +731,7 @@ def main():
                     if not topic or not topic.strip():
                         errors.append("Topic is required")
                     if generate_image:
-                        if not api_key or not api_key.strip():
+                        if not st.session_state.get('api_key', ''):
                             errors.append("API key is required for image generation")
                         if not image_prompt or not image_prompt.strip():
                             errors.append("Image description is required when generating images")
@@ -744,7 +748,7 @@ def main():
                         # Generate image if requested
                         image_url = None
                         if generate_image and image_prompt and image_prompt.strip():
-                            generator = ContentGenerator(api_key)
+                            generator = ContentGenerator(st.session_state.get('api_key', ''))
                             image_data = generator.generate_image(image_prompt.strip(), platform)
                             
                             if image_data:
