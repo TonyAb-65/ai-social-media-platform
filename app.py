@@ -3,7 +3,7 @@
 AI Social Media Platform - OpenAI Integration v2.0
 ==========================================
 Complete AI-powered social media management with multi-language support,
-bulk generation, image variations, and scheduled posts
+bulk generation, image variations, scheduled posts, and VIDEO/REEL creation with Replicate
 """
 
 import streamlit as st
@@ -31,13 +31,24 @@ except ImportError:
     OPENAI_AVAILABLE = False
     st.error("OpenAI library not installed. Run: pip install openai")
 
+# Replicate Integration for Video/Reels
+try:
+    import replicate
+    REPLICATE_AVAILABLE = True
+except ImportError:
+    REPLICATE_AVAILABLE = False
+    st.warning("Replicate library not installed. Run: pip install replicate (for video/reel generation)")
+
 # Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Create images directory if it doesn't exist
+# Create directories
 IMAGES_DIR = Path("generated_images")
 IMAGES_DIR.mkdir(exist_ok=True)
+
+VIDEOS_DIR = Path("generated_videos")
+VIDEOS_DIR.mkdir(exist_ok=True)
 
 # Supported languages for multi-language support
 LANGUAGES = {
@@ -54,9 +65,59 @@ LANGUAGES = {
 }
 
 # ============================================================================
-# Image saving and downloading utilities
+# NEW: Video/Reel saving utilities
 # ============================================================================
-def save_image_locally(image_url: str, prompt: str) -> str:
+def save_video_locally(video_url: str, description: str) -> str:
+    """Download and save video locally"""
+    try:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_desc = "".join(c for c in description[:30] if c.isalnum() or c in (' ', '-', '_')).strip()
+        filename = f"{timestamp}_{safe_desc}.mp4"
+        filepath = VIDEOS_DIR / filename
+        
+        response = requests.get(video_url, timeout=120, stream=True)
+        response.raise_for_status()
+        
+        with open(filepath, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+        
+        logger.info(f"Video saved to: {filepath}")
+        return str(filepath)
+    except Exception as e:
+        logger.error(f"Failed to save video: {e}")
+        return ""
+
+def save_video_to_db(conn, video_url: str, prompt: str, local_path: str, model_used: str) -> str:
+    """Save video to database for Assets"""
+    try:
+        c = conn.cursor()
+        video_id = str(uuid.uuid4())
+        
+        c.execute('''INSERT INTO videos 
+                     (id, prompt, url, created_date, local_path, model_used, used_in_posts)
+                     VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                  (video_id, prompt, video_url, datetime.now().isoformat(), 
+                   local_path, model_used, json.dumps([])))
+        
+        conn.commit()
+        logger.info(f"Video saved to database: {video_id}")
+        return video_id
+    except Exception as e:
+        logger.error(f"Failed to save video to database: {e}")
+        return ""
+
+def get_all_videos(conn):
+    """Get all videos from database"""
+    try:
+        c = conn.cursor()
+        c.execute('''SELECT * FROM videos ORDER BY created_date DESC''')
+        columns = [description[0] for description in c.description]
+        videos = [dict(zip(columns, row)) for row in c.fetchall()]
+        return videos
+    except Exception as e:
+        logger.error(f"Failed to get videos: {e}")
+        return []
     """Download and save image locally"""
     try:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -142,6 +203,63 @@ class ContentGenerator:
             return {"success": True, "message": "API connection successful!", "model": "gpt-3.5-turbo"}
         except Exception as e:
             return {"success": False, "message": f"Connection failed: {str(e)}", "error": str(e)}
+    
+    def generate_caption_from_image(self, image_data: bytes, platform: str, tone: str, 
+                                   additional_context: str = "", language: str = "en") -> str:
+        """Generate caption by analyzing uploaded product image with GPT-4 Vision"""
+        try:
+            logger.info(f"Generating caption from image for {platform}...")
+            
+            # Convert image to base64
+            import base64
+            base64_image = base64.b64encode(image_data).decode('utf-8')
+            
+            # Language instruction
+            language_instruction = ""
+            if language != "en":
+                lang_names = {v: k for k, v in LANGUAGES.items()}
+                language_instruction = f"\n- Write the caption in {lang_names.get(language, 'English')}"
+            
+            context_instruction = f"\nAdditional context: {additional_context}" if additional_context else ""
+            
+            prompt = f"""Analyze this product image and create a compelling {platform} marketing post.
+
+Requirements:
+- Tone: {tone}
+- Describe what you see in the image
+- Highlight the product's key features
+- Create engaging, sales-focused copy
+- Include 3-5 relevant hashtags
+- Length: Optimal for {platform}{language_instruction}{context_instruction}
+
+Generate the caption now:"""
+            
+            response = self.client.chat.completions.create(
+                model="gpt-4-vision-preview",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{base64_image}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens=300
+            )
+            
+            caption = response.choices[0].message.content.strip()
+            logger.info(f"Caption generated from image for {platform}")
+            return caption
+            
+        except Exception as e:
+            logger.error(f"Caption from image error: {e}")
+            raise
     
     def generate_caption(self, topic: str, platform: str, tone: str, keywords: list, language: str = "en") -> str:
         """Generate social media caption using GPT-4 with multi-language support"""
@@ -404,10 +522,206 @@ Enhanced prompt:"""
             return user_prompt
 
 # ============================================================================
+# NEW: ReelGenerator Class for Replicate API
+# ============================================================================
+class ReelGenerator:
+    """Handles video/reel generation using Replicate API"""
+    
+    def __init__(self, api_key: str):
+        """Initialize with Replicate API key"""
+        if not api_key:
+            raise ValueError("Replicate API key cannot be empty")
+        
+        self.api_key = ''.join(api_key.split())
+        os.environ["REPLICATE_API_TOKEN"] = self.api_key
+        logger.info(f"ReelGenerator initialized with Replicate API")
+    
+    def test_connection(self) -> dict:
+        """Test Replicate API connection"""
+        try:
+            # Simple test - list models
+            replicate.models.list()
+            return {"success": True, "message": "Replicate API connection successful!"}
+        except Exception as e:
+            return {"success": False, "message": f"Connection failed: {str(e)}", "error": str(e)}
+    
+    def generate_video(self, prompt: str, model: str = "stability-ai/stable-video-diffusion", 
+                      image_url: str = None, duration: int = 3) -> str:
+        """Generate video using Replicate models"""
+        try:
+            logger.info(f"Starting video generation with {model}...")
+            logger.info(f"Prompt: {prompt[:100]}...")
+            
+            # Different models have different inputs
+            if "stable-video-diffusion" in model:
+                # Requires an input image
+                if not image_url:
+                    raise ValueError("Stable Video Diffusion requires an input image")
+                
+                output = replicate.run(
+                    model,
+                    input={
+                        "cond_aug": 0.02,
+                        "decoding_t": 7,
+                        "input_image": image_url,
+                        "video_length": "14_frames_with_svd",
+                        "sizing_strategy": "maintain_aspect_ratio",
+                        "motion_bucket_id": 127,
+                        "frames_per_second": 6
+                    }
+                )
+            
+            elif "animate-diff" in model or "animatediff" in model:
+                # Text to video
+                output = replicate.run(
+                    model,
+                    input={
+                        "prompt": prompt,
+                        "num_frames": 16,
+                        "num_inference_steps": 25
+                    }
+                )
+            
+            elif "runway" in model:
+                # Gen-2 by Runway
+                output = replicate.run(
+                    model,
+                    input={
+                        "prompt": prompt,
+                        "duration": duration,
+                        "upscale": False
+                    }
+                )
+            
+            else:
+                # Generic approach
+                output = replicate.run(
+                    model,
+                    input={
+                        "prompt": prompt
+                    }
+                )
+            
+            # Handle different output formats
+            if isinstance(output, str):
+                video_url = output
+            elif isinstance(output, list) and len(output) > 0:
+                video_url = output[0] if isinstance(output[0], str) else str(output[0])
+            else:
+                video_url = str(output)
+            
+            logger.info(f"✅ Video generated successfully!")
+            logger.info(f"Video URL: {video_url[:80]}...")
+            return video_url
+            
+        except Exception as e:
+            logger.error(f"❌ Video generation error: {str(e)}")
+            raise
+    
+    def get_available_models(self) -> List[Dict[str, str]]:
+        """Get list of available video generation models"""
+        return [
+            {
+                "name": "Stable Video Diffusion",
+                "id": "stability-ai/stable-video-diffusion:3f0457e4619daac51203dedb472816fd4af51f3149fa7a9e0b5ffcf1b8172438",
+                "description": "Image to video - Animate your images!",
+                "requires_image": True
+            },
+            {
+                "name": "AnimateDiff",
+                "id": "lucataco/animate-diff:beecf59c4aee8d81bf04f0381033dfa10dc16e845b4ae00d281e2fa377e48a9f",
+                "description": "Text to video animation",
+                "requires_image": False
+            },
+            {
+                "name": "Zeroscope V2 XL",
+                "id": "anotherjesse/zeroscope-v2-xl:9f747673945c62801b13b84701c783929c0ee784e4748ec062204894dda1a351",
+                "description": "High quality text-to-video",
+                "requires_image": False
+            }
+        ]
+    """Enhances user prompts for better DALL-E 3 results"""
+    
+    def __init__(self, api_key: str):
+        """Initialize with OpenAI API key"""
+        if not api_key:
+            raise ValueError("API key cannot be empty")
+        
+        self.api_key = ''.join(api_key.split())
+        
+        if not self.api_key.startswith('sk-'):
+            raise ValueError(f"Invalid API key format. OpenAI keys start with 'sk-'")
+        
+        self.client = OpenAI(api_key=self.api_key)
+        logger.info(f"PromptEngineer initialized with key: {self.api_key[:10]}...{self.api_key[-4:]}")
+    
+    def enhance_for_dalle(self, user_prompt: str) -> str:
+        """Enhance user prompt for DALL-E 3 using GPT-4 with focus on photorealism when needed"""
+        try:
+            logger.info(f"Enhancing prompt: {user_prompt[:50]}...")
+            
+            # Detect if user wants real photos (humans, people, portraits, etc.)
+            photo_keywords = ['person', 'people', 'human', 'man', 'woman', 'portrait', 'face', 'selfie', 
+                            'photograph', 'photo', 'realistic', 'real', 'professional', 'model', 'business']
+            wants_photorealism = any(keyword in user_prompt.lower() for keyword in photo_keywords)
+            
+            # Build enhancement instructions based on desired style
+            if wants_photorealism:
+                style_instructions = """CRITICAL: This must be a PHOTOREALISTIC image, not animation or cartoon.
+
+Required specifications:
+1. Style: Professional photography, shot on high-end camera (Canon EOS R5, Sony A7R IV)
+2. Realism: Photorealistic human features, natural skin texture, real lighting
+3. Quality: High resolution, sharp focus, detailed textures
+4. Lighting: Natural lighting or professional studio setup
+5. NO cartoon, NO animation, NO illustrated style, NO digital art
+6. Must look like a real photograph that could appear in a magazine or professional portfolio
+
+"""
+            else:
+                style_instructions = """Choose the most appropriate art style for this image (digital art, illustration, photorealistic, etc.).
+
+"""
+
+            enhancement_instructions = f"""{style_instructions}You are a DALL-E 3 prompt expert. Enhance this prompt for better image generation:
+
+User prompt: {user_prompt}
+
+Create a detailed, professional DALL-E 3 prompt that:
+1. Keeps the core idea but adds rich visual details
+2. Specifies the exact art style needed (photorealistic if humans/people are involved)
+3. Includes specific lighting details (golden hour, studio lighting, natural light, etc.)
+4. Mentions camera angle and composition
+5. Adds atmospheric and environmental details
+6. Is vivid, specific, and under 1000 characters
+
+Enhanced prompt:"""
+
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are an expert at writing DALL-E 3 prompts. When users want photos of people, you ALWAYS specify photorealistic, professional photography style to avoid cartoon/animated results."},
+                    {"role": "user", "content": enhancement_instructions}
+                ],
+                max_tokens=400,
+                temperature=0.7
+            )
+            
+            enhanced = response.choices[0].message.content.strip()
+            enhanced = enhanced.strip('"').strip("'")
+            logger.info(f"✅ Prompt enhanced successfully! (Photorealism: {wants_photorealism})")
+            return enhanced
+            
+        except Exception as e:
+            logger.error(f"❌ Prompt enhancement error: {str(e)}")
+            logger.warning("Returning original prompt")
+            return user_prompt
+
+# ============================================================================
 # Database Functions
 # ============================================================================
 def init_db():
-    """Initialize SQLite database with enhanced schema"""
+    """Initialize SQLite database with enhanced schema including videos"""
     conn = sqlite3.connect('social_media.db', check_same_thread=False)
     c = conn.cursor()
     
@@ -418,11 +732,17 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS posts
                  (id TEXT PRIMARY KEY, campaign_id TEXT, platform TEXT, 
                   content TEXT, scheduled_date TEXT, status TEXT, 
-                  engagement INTEGER, image_url TEXT, image_path TEXT, language TEXT)''')
+                  engagement INTEGER, image_url TEXT, image_path TEXT, 
+                  video_url TEXT, video_path TEXT, language TEXT)''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS images
                  (id TEXT PRIMARY KEY, prompt TEXT, url TEXT, 
                   created_date TEXT, used_in_posts TEXT, local_path TEXT)''')
+    
+    # NEW: Videos table
+    c.execute('''CREATE TABLE IF NOT EXISTS videos
+                 (id TEXT PRIMARY KEY, prompt TEXT, url TEXT, 
+                  created_date TEXT, local_path TEXT, model_used TEXT, used_in_posts TEXT)''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS scheduled_posts
                  (id TEXT PRIMARY KEY, post_id TEXT, scheduled_datetime TEXT,
@@ -440,11 +760,12 @@ def save_scheduled_post(conn, post_data: dict, schedule_datetime: datetime):
         post_id = str(uuid.uuid4())
         c.execute('''INSERT INTO posts 
                      (id, campaign_id, platform, content, scheduled_date, status, 
-                      engagement, image_url, image_path, language)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                      engagement, image_url, image_path, video_url, video_path, language)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                   (post_id, post_data.get('campaign_id', ''), post_data['platform'],
                    post_data['content'], schedule_datetime.isoformat(), 'scheduled',
                    0, post_data.get('image_url', ''), post_data.get('image_path', ''),
+                   post_data.get('video_url', ''), post_data.get('video_path', ''),
                    post_data.get('language', 'en')))
         
         schedule_id = str(uuid.uuid4())
@@ -515,6 +836,8 @@ def init_session_state():
         st.session_state.photo_style = "Photorealistic (Real Photos)"
     if 'auto_save_images' not in st.session_state:
         st.session_state.auto_save_images = True
+    if 'replicate_api_key' not in st.session_state:
+        st.session_state.replicate_api_key = ""
 
 # Helper functions
 def show_success(message):
@@ -647,11 +970,55 @@ def main():
                 st.warning("⚠️ Enter your OpenAI API key above")
             
             st.markdown("---")
+            
+            # NEW: Replicate API Key for Video/Reels
+            st.markdown("### 🎬 Replicate API (for Reels)")
+            
+            replicate_key_from_secrets = st.secrets.get("REPLICATE_API_KEY", "")
+            
+            if replicate_key_from_secrets:
+                st.success("✅ Replicate API key loaded from secrets")
+                replicate_key = replicate_key_from_secrets
+            else:
+                st.info("💡 Add REPLICATE_API_KEY to secrets.toml for video/reel generation")
+                replicate_key = st.text_input(
+                    "Replicate API Key",
+                    type="password",
+                    help="Get your key from https://replicate.com/account/api-tokens",
+                    key="replicate_key_input"
+                )
+            
+            if replicate_key:
+                cleaned_rep_key = ''.join(replicate_key.split())
+                st.session_state.replicate_api_key = cleaned_rep_key
+                st.success(f"✅ Replicate key stored (length: {len(cleaned_rep_key)})")
+                
+                if REPLICATE_AVAILABLE and st.button("🎬 Test Replicate Connection", key="test_replicate", use_container_width=True):
+                    with st.spinner("Testing Replicate API..."):
+                        try:
+                            reel_gen = ReelGenerator(st.session_state.replicate_api_key)
+                            result = reel_gen.test_connection()
+                            
+                            if result["success"]:
+                                st.success(f"✅ {result['message']}")
+                                st.balloons()
+                            else:
+                                st.error(f"❌ {result['message']}")
+                        except Exception as e:
+                            st.error(f"❌ Connection test failed: {str(e)}")
+            else:
+                st.warning("⚠️ Enter Replicate API key to create videos/reels")
+            
+            if not REPLICATE_AVAILABLE:
+                st.error("⚠️ Replicate library not installed")
+                st.code("pip install replicate")
+            
+            st.markdown("---")
             st.markdown("### 📊 Navigation")
             
             view = st.radio(
                 "Select View",
-                ["📊 Overview", "🎯 Campaigns", "✏️ Content Lab", "🖼️ Assets", "📈 Insights", "📅 Scheduled Posts"],
+                ["📊 Overview", "🎯 Campaigns", "✏️ Content Lab", "🖼️ Assets", "🎬 Videos/Reels", "📈 Insights", "📅 Scheduled Posts"],
                 label_visibility="collapsed"
             )
             
@@ -709,37 +1076,68 @@ def main():
             **AI Social Platform v2.0**
             
             **Powered by:**
-            - OpenAI GPT-4
-            - DALL-E 3 & DALL-E 2
+            - OpenAI GPT-4 & DALL-E 3
+            - Replicate AI (Videos)
             - Streamlit
             
             **Features:**
             - 🌍 Multi-language (10+ languages)
-            - 🎨 Bulk image generation
+            - 🎨 AI image generation
+            - 🎬 AI video/reel creation
             - 🔄 Image variations
-            - 💾 Auto-save images
+            - 💾 Auto-save assets
             - 📅 Scheduled posts
             - 📊 Enhanced analytics
             - 🖼️ HD quality images
-            - 🛡️ Safe Mode for content filters
+            - 🛡️ Safe Mode for filters
             """)
             
             st.markdown("---")
             st.markdown("### 💡 Quick Tips")
             st.markdown("""
+            **Upload Product Photos:**
+            
+            📤 Upload → AI analyzes image
+            
+            📝 Generates perfect caption
+            
+            🎬 Creates animated reel
+            
+            ⚡ All in one click!
+            
+            ---
+            
+            **Want REAL PHOTOS (Not Animated)?**
+            
+            1️⃣ Set **Image Style** to:
+            📸 'Photorealistic (Real Photos)'
+            
+            2️⃣ Keep descriptions **simple**:
+            ✅ "A woman in business attire"
+            ✅ "A young man outdoors"
+            ❌ "Cartoon style woman..."
+            
+            3️⃣ Enable **Safe Mode** if blocked
+            
+            ---
+            
+            **Create Viral Reels:**
+            
+            🎬 Add Replicate API key
+            
+            🎥 Use 'Create Reels & Videos'
+            
+            📱 Perfect for TikTok, Reels, Shorts
+            
+            ---
+            
             **Getting Content Filter Errors?**
             
             ✅ Enable 'Safe Mode' above
             
-            ✅ Use artistic language:
-            - 'Digital art of...'
-            - 'Illustration showing...'
-            - 'Artistic style...'
+            ✅ Or change to 'Digital Art'
             
-            ❌ Avoid being too specific:
-            - Remove 'realistic', 'photo'
-            - Simplify descriptions
-            - Use general terms
+            ✅ Simplify descriptions
             """)
         
         # HEADER
@@ -783,15 +1181,17 @@ def main():
                 st.markdown(f"""
                 <div class="metric-card">
                     <h3 style="margin: 0; font-size: 2rem;">{saved_images_count}</h3>
-                    <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Saved Images</p>
+                    <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Images</p>
                 </div>
                 """, unsafe_allow_html=True)
             
             with col4:
-                st.markdown("""
+                # Count saved videos
+                saved_videos_count = len(get_all_videos(conn))
+                st.markdown(f"""
                 <div class="metric-card">
-                    <h3 style="margin: 0; font-size: 2rem;">2.4M</h3>
-                    <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Total Reach</p>
+                    <h3 style="margin: 0; font-size: 2rem;">{saved_videos_count}</h3>
+                    <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Videos/Reels</p>
                 </div>
                 """, unsafe_allow_html=True)
             
@@ -875,7 +1275,216 @@ def main():
         elif "Content Lab" in view:
             st.markdown("### ✏️ AI Content Generation Lab")
             
-            # Generate Caption & Image
+            # ====================================================================
+            # NEW FEATURE: Upload Product Image → Generate Post & Reel
+            # ====================================================================
+            with st.expander("📤 Upload Product Image → Create Post & Reel", expanded=True):
+                st.markdown("Upload your product image and let AI create marketing posts and reels!")
+                
+                # File uploader
+                uploaded_file = st.file_uploader(
+                    "Upload Product Image",
+                    type=['png', 'jpg', 'jpeg', 'webp'],
+                    help="Upload a product photo to generate AI-powered marketing content",
+                    key="product_upload"
+                )
+                
+                if uploaded_file:
+                    # Display uploaded image
+                    col1, col2 = st.columns([1, 1])
+                    
+                    with col1:
+                        st.image(uploaded_file, caption="Your Product", use_column_width=True)
+                        
+                        # Save uploaded image
+                        image_bytes = uploaded_file.read()
+                        uploaded_file.seek(0)  # Reset file pointer
+                        
+                        # Save to local storage
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        upload_filename = f"uploaded_{timestamp}_{uploaded_file.name}"
+                        upload_path = IMAGES_DIR / upload_filename
+                        
+                        with open(upload_path, 'wb') as f:
+                            f.write(image_bytes)
+                        
+                        st.success(f"✅ Image uploaded: {uploaded_file.name}")
+                    
+                    with col2:
+                        st.markdown("**📝 Content Settings:**")
+                        
+                        platform_for_product = st.selectbox(
+                            "Platform",
+                            ["Instagram", "TikTok", "Facebook", "LinkedIn", "Twitter/X", "Snapchat"],
+                            key="product_platform"
+                        )
+                        
+                        tone_for_product = st.selectbox(
+                            "Tone",
+                            ["Professional", "Casual", "Humorous", "Inspirational", "Urgent/Sales"],
+                            key="product_tone"
+                        )
+                        
+                        additional_context = st.text_area(
+                            "Additional Context (Optional)",
+                            placeholder="e.g., 'This is a limited edition product, on sale for 50% off'",
+                            height=80,
+                            key="product_context"
+                        )
+                        
+                        schedule_date_product = st.date_input("Schedule Date", key="product_date")
+                        schedule_time_product = st.time_input("Schedule Time", key="product_time")
+                    
+                    st.markdown("---")
+                    st.markdown("### 🎯 What would you like to create?")
+                    
+                    col_a, col_b, col_c = st.columns(3)
+                    
+                    with col_a:
+                        if st.button("📝 Generate Caption Only", key="gen_caption_only", use_container_width=True):
+                            if not st.session_state.get('api_key', ''):
+                                show_error("Please enter your OpenAI API key in the sidebar!")
+                            else:
+                                try:
+                                    generator = ContentGenerator(st.session_state.get('api_key', ''))
+                                    
+                                    with st.spinner("✨ Analyzing your product and creating caption..."):
+                                        selected_lang = st.session_state.get('selected_language', 'en')
+                                        
+                                        caption = generator.generate_caption_from_image(
+                                            image_data=image_bytes,
+                                            platform=platform_for_product,
+                                            tone=tone_for_product,
+                                            additional_context=additional_context,
+                                            language=selected_lang
+                                        )
+                                        
+                                        st.markdown("#### 📝 Generated Caption")
+                                        st.success(caption)
+                                        
+                                        # Save scheduled post
+                                        schedule_datetime = datetime.combine(schedule_date_product, schedule_time_product)
+                                        post_data = {
+                                            'platform': platform_for_product,
+                                            'content': caption,
+                                            'image_url': str(upload_path),
+                                            'image_path': str(upload_path),
+                                            'language': selected_lang
+                                        }
+                                        post_id = save_scheduled_post(conn, post_data, schedule_datetime)
+                                        
+                                        if post_id:
+                                            show_success(f"🎉 Post scheduled for {schedule_datetime.strftime('%Y-%m-%d at %H:%M')}!")
+                                
+                                except Exception as e:
+                                    show_error(f"Caption generation failed: {str(e)}")
+                    
+                    with col_b:
+                        if st.button("🎬 Generate Reel Only", key="gen_reel_only", use_container_width=True):
+                            if not st.session_state.get('replicate_api_key', ''):
+                                show_error("Please enter your Replicate API key in the sidebar!")
+                            elif not REPLICATE_AVAILABLE:
+                                show_error("Replicate library not installed. Run: pip install replicate")
+                            else:
+                                try:
+                                    reel_gen = ReelGenerator(st.session_state.replicate_api_key)
+                                    
+                                    with st.spinner("🎬 Creating reel from your product... (1-3 minutes)"):
+                                        # Use Stable Video Diffusion to animate the product image
+                                        video_url = reel_gen.generate_video(
+                                            prompt=f"Product showcase, smooth camera movement, professional marketing video, {additional_context}",
+                                            model="stability-ai/stable-video-diffusion:3f0457e4619daac51203dedb472816fd4af51f3149fa7a9e0b5ffcf1b8172438",
+                                            image_url=str(upload_path)
+                                        )
+                                        
+                                        if video_url:
+                                            st.markdown("#### 🎬 Generated Reel")
+                                            st.video(video_url)
+                                            
+                                            # Save video
+                                            video_path = save_video_locally(video_url, f"product_reel_{uploaded_file.name}")
+                                            if video_path:
+                                                video_id = save_video_to_db(conn, video_url, f"Product reel from {uploaded_file.name}", video_path, "Stable Video Diffusion")
+                                                show_success("🎉 Reel created and saved to library!")
+                                
+                                except Exception as e:
+                                    show_error(f"Reel generation failed: {str(e)}")
+                    
+                    with col_c:
+                        if st.button("🚀 Generate Both", key="gen_both", use_container_width=True):
+                            if not st.session_state.get('api_key', ''):
+                                show_error("Please enter your OpenAI API key in the sidebar!")
+                            elif not st.session_state.get('replicate_api_key', ''):
+                                show_error("Please enter your Replicate API key in the sidebar!")
+                            elif not REPLICATE_AVAILABLE:
+                                show_error("Replicate library not installed. Run: pip install replicate")
+                            else:
+                                try:
+                                    generator = ContentGenerator(st.session_state.get('api_key', ''))
+                                    reel_gen = ReelGenerator(st.session_state.replicate_api_key)
+                                    
+                                    with st.spinner("✨ Creating complete marketing package..."):
+                                        # Step 1: Generate Caption
+                                        st.write("**Step 1/2:** Generating AI caption...")
+                                        selected_lang = st.session_state.get('selected_language', 'en')
+                                        
+                                        caption = generator.generate_caption_from_image(
+                                            image_data=image_bytes,
+                                            platform=platform_for_product,
+                                            tone=tone_for_product,
+                                            additional_context=additional_context,
+                                            language=selected_lang
+                                        )
+                                        
+                                        st.markdown("#### 📝 Generated Caption")
+                                        st.success(caption)
+                                        
+                                        # Step 2: Generate Reel
+                                        st.write("**Step 2/2:** Creating product reel... (1-3 minutes)")
+                                        
+                                        video_url = reel_gen.generate_video(
+                                            prompt=f"Product showcase, smooth camera movement, professional marketing video, {additional_context}",
+                                            model="stability-ai/stable-video-diffusion:3f0457e4619daac51203dedb472816fd4af51f3149fa7a9e0b5ffcf1b8172438",
+                                            image_url=str(upload_path)
+                                        )
+                                        
+                                        if video_url:
+                                            st.markdown("#### 🎬 Generated Reel")
+                                            st.video(video_url)
+                                            
+                                            # Save video
+                                            video_path = save_video_locally(video_url, f"product_reel_{uploaded_file.name}")
+                                            if video_path:
+                                                video_id = save_video_to_db(conn, video_url, f"Product reel from {uploaded_file.name}", video_path, "Stable Video Diffusion")
+                                        
+                                        # Save scheduled post with both
+                                        schedule_datetime = datetime.combine(schedule_date_product, schedule_time_product)
+                                        post_data = {
+                                            'platform': platform_for_product,
+                                            'content': caption,
+                                            'image_url': str(upload_path),
+                                            'image_path': str(upload_path),
+                                            'video_url': video_url if video_url else None,
+                                            'video_path': video_path if video_path else None,
+                                            'language': selected_lang
+                                        }
+                                        post_id = save_scheduled_post(conn, post_data, schedule_datetime)
+                                        
+                                        st.balloons()
+                                        show_success(f"🎉 Complete marketing package created and scheduled for {schedule_datetime.strftime('%Y-%m-%d at %H:%M')}!")
+                                        st.info("📅 View in 'Scheduled Posts' • 🖼️ Image in 'Assets' • 🎬 Video in 'Videos/Reels'")
+                                
+                                except Exception as e:
+                                    show_error(f"Generation failed: {str(e)}")
+                else:
+                    st.info("👆 Upload a product image to get started!")
+                    st.markdown("**💡 Perfect for:**")
+                    st.markdown("- 📦 Product launches")
+                    st.markdown("- 🛍️ E-commerce posts")
+                    st.markdown("- 📱 Social media ads")
+                    st.markdown("- 🎁 Promotional content")
+            
+            # Generate Caption & Image (existing feature)
             with st.expander("🎨 Generate Caption & Image", expanded=True):
                 st.markdown("Create complete social media posts with AI-generated captions and images.")
                 
@@ -1008,7 +1617,13 @@ def main():
                     height=100
                 )
                 
-                st.info("💡 **For Real Photos:** Include 'professional photograph of a person/woman/man' or 'realistic portrait'. **For Art:** Describe style like 'digital art', 'watercolor', 'illustration'")
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.info("💡 **For Real Photos:** Select 'Photorealistic' in sidebar, describe simply: 'A person in casual clothes outdoors'")
+                with col2:
+                    current_style = st.session_state.get('photo_style', 'Photorealistic (Real Photos)')
+                    style_emoji = "📸" if "Photorealistic" in current_style else "🎨"
+                    st.metric("Current Style", f"{style_emoji}")
                 
                 if not st.session_state.get('api_key', ''):
                     st.warning("⚠️ Please enter your OpenAI API key in the sidebar first")
@@ -1310,6 +1925,148 @@ def main():
                 else:
                     st.info("No saved images found. Generate some images first!")
                     st.markdown("Tip: Enable 'Auto-save images locally' in the sidebar.")
+            
+            # ====================================================================
+            # NEW FEATURE: Create Reels/Videos with Replicate
+            # ====================================================================
+            with st.expander("🎬 Create Reels & Videos (Replicate AI)", expanded=False):
+                st.markdown("Generate AI-powered videos and reels for TikTok, Instagram, YouTube Shorts!")
+                
+                if not st.session_state.get('replicate_api_key', ''):
+                    st.warning("⚠️ Please enter your Replicate API key in the sidebar first")
+                    st.markdown("**Get your free API key:**")
+                    st.markdown("1. Go to https://replicate.com")
+                    st.markdown("2. Sign up/Login")
+                    st.markdown("3. Get API token from https://replicate.com/account/api-tokens")
+                elif not REPLICATE_AVAILABLE:
+                    st.error("❌ Replicate library not installed")
+                    st.code("pip install replicate")
+                else:
+                    try:
+                        reel_gen = ReelGenerator(st.session_state.replicate_api_key)
+                        
+                        st.markdown("### 🎥 Video Generation Options")
+                        
+                        # Model selection
+                        models = reel_gen.get_available_models()
+                        model_names = [m['name'] for m in models]
+                        
+                        selected_model_name = st.selectbox(
+                            "Select Video Model",
+                            model_names,
+                            help="Different models for different video styles"
+                        )
+                        
+                        selected_model = next(m for m in models if m['name'] == selected_model_name)
+                        
+                        st.info(f"📝 {selected_model['description']}")
+                        
+                        # Input based on model
+                        video_prompt = st.text_area(
+                            "Describe your video/reel",
+                            placeholder="A person walking on a beach at sunset, cinematic style",
+                            height=100,
+                            key="video_prompt"
+                        )
+                        
+                        # If model requires image
+                        input_image_url = None
+                        if selected_model.get('requires_image'):
+                            st.warning("⚠️ This model requires an input image to animate")
+                            
+                            # Option to use saved image
+                            saved_images = get_all_images(conn)
+                            
+                            if saved_images:
+                                use_saved = st.checkbox("Use a saved image from Assets", value=True)
+                                
+                                if use_saved:
+                                    image_options = [f"{img['id'][:8]}... - {img['prompt'][:50]}" for img in saved_images]
+                                    selected_img_idx = st.selectbox("Select image", range(len(image_options)), format_func=lambda x: image_options[x])
+                                    
+                                    selected_img = saved_images[selected_img_idx]
+                                    input_image_url = selected_img['url']
+                                    
+                                    st.image(input_image_url, caption="Selected Image", use_column_width=True)
+                                else:
+                                    input_image_url = st.text_input("Or enter image URL", placeholder="https://...")
+                            else:
+                                input_image_url = st.text_input("Enter image URL", placeholder="https://...")
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            video_duration = st.slider("Duration (seconds)", 1, 10, 3)
+                        with col2:
+                            auto_save_video = st.checkbox("Auto-save video", value=True)
+                        
+                        if st.button("🎬 Generate Reel/Video", key="gen_reel", use_container_width=True):
+                            if not video_prompt or len(video_prompt.strip()) < 5:
+                                st.error("❌ Please provide a description for your video")
+                            elif selected_model.get('requires_image') and not input_image_url:
+                                st.error("❌ This model requires an input image")
+                            else:
+                                with st.spinner("🎬 Creating your reel... This may take 1-3 minutes..."):
+                                    try:
+                                        st.write("---")
+                                        st.write("### 🎥 Video Generation Process")
+                                        
+                                        st.info(f"📹 Model: {selected_model['name']}")
+                                        st.write("**Step 1:** Preparing video generation...")
+                                        
+                                        # Generate video
+                                        st.write("**Step 2:** Generating video with AI...")
+                                        video_url = reel_gen.generate_video(
+                                            prompt=video_prompt,
+                                            model=selected_model['id'],
+                                            image_url=input_image_url,
+                                            duration=video_duration
+                                        )
+                                        
+                                        if video_url:
+                                            st.success("✅ Video generated successfully!")
+                                            st.write(f"Video URL: {video_url[:80]}...")
+                                            
+                                            st.write("**Step 3:** Displaying video...")
+                                            st.video(video_url)
+                                            
+                                            # Save video
+                                            video_path = None
+                                            if auto_save_video:
+                                                st.write("**Step 4:** Saving video...")
+                                                video_path = save_video_locally(video_url, video_prompt)
+                                                if video_path:
+                                                    st.success(f"💾 Video saved: {Path(video_path).name}")
+                                                    
+                                                    # Save to database
+                                                    video_id = save_video_to_db(conn, video_url, video_prompt, video_path, selected_model['name'])
+                                                    if video_id:
+                                                        st.success("✅ Video saved to Assets!")
+                                            
+                                            st.balloons()
+                                            show_success("🎉 Reel/Video creation complete!")
+                                            
+                                            # Download button
+                                            st.download_button(
+                                                label="📥 Download Video URL",
+                                                data=video_url,
+                                                file_name="reel_video_url.txt",
+                                                mime="text/plain"
+                                            )
+                                        else:
+                                            show_error("❌ Failed to generate video")
+                                    
+                                    except Exception as e:
+                                        st.error(f"❌ Video generation failed!")
+                                        st.code(f"Error: {str(e)}")
+                                        
+                                        st.markdown("### 🔧 Troubleshooting:")
+                                        st.markdown("- Check your Replicate API key is valid")
+                                        st.markdown("- Ensure you have credits in your Replicate account")
+                                        st.markdown("- Try a different model")
+                                        st.markdown("- Simplify your video description")
+                    
+                    except Exception as e:
+                        st.error(f"Failed to initialize ReelGenerator: {str(e)}")
         
         # SURGICAL FIX 3: Enhanced Assets view with reuse options
         elif "Assets" in view:
@@ -1411,12 +2168,21 @@ def main():
                             st.markdown("**📝 Content:**")
                             st.info(post['content'])
                             
+                            # Display image if exists
                             if post.get('image_url') or post.get('image_path'):
                                 st.markdown("**🖼️ Image:**")
                                 if post.get('image_path') and Path(post['image_path']).exists():
                                     st.image(post['image_path'], use_column_width=True)
                                 elif post.get('image_url'):
                                     st.image(post['image_url'], use_column_width=True)
+                            
+                            # Display video if exists
+                            if post.get('video_url') or post.get('video_path'):
+                                st.markdown("**🎬 Video:**")
+                                if post.get('video_path') and Path(post['video_path']).exists():
+                                    st.video(post['video_path'])
+                                elif post.get('video_url'):
+                                    st.video(post['video_url'])
                         
                         with col2:
                             st.markdown("**ℹ️ Details:**")
@@ -1557,9 +2323,9 @@ def main():
         st.markdown("<br><br>", unsafe_allow_html=True)
         st.markdown("""
         <div style="text-align: center; padding: 2rem; border-top: 1px solid rgba(255,255,255,0.05); color: #9aa4b2; font-size: 0.875rem;">
-            <p><strong>AI Social Platform v2.0</strong> | Powered by OpenAI GPT-4 & DALL-E 3</p>
+            <p><strong>AI Social Platform v2.0</strong> | Powered by OpenAI GPT-4, DALL-E 3 & Replicate AI</p>
             <p style="margin-top: 0.5rem;">
-                ✨ Features: Multi-Language • Bulk Generation • Image Variations • Auto-Save • Scheduled Posts • Asset Library
+                ✨ Features: Multi-Language • Images • Videos/Reels • Bulk Generation • Variations • Auto-Save • Scheduled Posts • Asset Library
             </p>
         </div>
         """, unsafe_allow_html=True)
