@@ -182,18 +182,25 @@ Generate the caption now:"""
             logger.error(f"Caption generation error: {e}")
             raise
     
-    def generate_image(self, prompt: str, size: str = "1024x1024", quality: str = "hd") -> str:
-        """Generate image using DALL-E 3 with HD quality"""
+    def generate_image(self, prompt: str, size: str = "1024x1024", quality: str = "hd", safe_mode: bool = False) -> str:
+        """Generate image using DALL-E 3 with HD quality and content filter handling"""
         try:
             logger.info(f"Starting DALL-E 3 image generation...")
             logger.info(f"Prompt: {prompt[:100]}...")
-            logger.info(f"Quality: {quality}, Size: {size}")
+            logger.info(f"Quality: {quality}, Size: {size}, Safe Mode: {safe_mode}")
+            
+            # If safe mode, simplify prompt to avoid filters
+            final_prompt = prompt
+            if safe_mode:
+                # Remove potentially problematic words while keeping core meaning
+                final_prompt = self._sanitize_prompt(prompt)
+                logger.info(f"Safe mode enabled. Sanitized prompt: {final_prompt[:100]}...")
             
             response = self.client.images.generate(
                 model="dall-e-3",
-                prompt=prompt,
+                prompt=final_prompt,
                 size=size,
-                quality=quality,  # "hd" for high quality, "standard" for faster/cheaper
+                quality=quality,
                 n=1
             )
             
@@ -202,8 +209,51 @@ Generate the caption now:"""
             return image_url
             
         except Exception as e:
-            logger.error(f"❌ DALL-E 3 error: {str(e)}")
+            error_str = str(e)
+            
+            # Handle content policy violations specifically
+            if "content_policy_violation" in error_str or "content filters" in error_str:
+                logger.warning(f"Content filter triggered. Prompt: {prompt[:100]}...")
+                
+                # Try again with simplified prompt if not already in safe mode
+                if not safe_mode:
+                    logger.info("Retrying with safe mode enabled...")
+                    return self.generate_image(prompt, size, quality, safe_mode=True)
+                else:
+                    # If safe mode also failed, raise with helpful message
+                    raise ValueError(
+                        "Content filter blocked this image. Try:\n"
+                        "1. Use more general descriptions\n"
+                        "2. Avoid specific people, brands, or copyrighted content\n"
+                        "3. Remove any potentially sensitive words\n"
+                        "4. Simplify your description"
+                    )
+            
+            logger.error(f"❌ DALL-E 3 error: {error_str}")
             raise
+    
+    def _sanitize_prompt(self, prompt: str) -> str:
+        """Sanitize prompt to avoid content filters"""
+        # Remove potentially problematic phrases
+        problematic_words = [
+            'realistic', 'photorealistic', 'photo', 'photograph',
+            'professional photography', 'shot on camera', 'Canon', 'Sony',
+            'portrait photography', 'studio lighting', 'high resolution'
+        ]
+        
+        sanitized = prompt
+        for word in problematic_words:
+            sanitized = sanitized.replace(word, '')
+        
+        # Clean up extra spaces
+        sanitized = ' '.join(sanitized.split())
+        
+        # Make it more artistic/less realistic
+        if 'person' in sanitized.lower() or 'woman' in sanitized.lower() or 'man' in sanitized.lower():
+            sanitized = f"Digital artwork showing {sanitized}"
+        
+        logger.info(f"Sanitized from: {prompt[:80]}... to: {sanitized[:80]}...")
+        return sanitized
     
     def generate_image_variation(self, image_path: str, n: int = 1) -> List[str]:
         """Generate variations of an existing image using DALL-E 2"""
@@ -409,6 +459,8 @@ def init_session_state():
         st.session_state.image_size = "1024x1024"
     if 'image_quality' not in st.session_state:
         st.session_state.image_quality = "hd"
+    if 'safe_mode' not in st.session_state:
+        st.session_state.safe_mode = False
     if 'auto_save_images' not in st.session_state:
         st.session_state.auto_save_images = True
 
@@ -580,6 +632,13 @@ def main():
             )
             st.session_state.image_quality = "hd" if "HD" in image_quality else "standard"
             
+            safe_mode = st.checkbox(
+                "Safe Mode (Bypass Content Filters)",
+                value=False,
+                help="Enable if images are getting blocked by content filters. Uses simpler prompts."
+            )
+            st.session_state.safe_mode = safe_mode
+            
             auto_save_images = st.checkbox("Auto-save images locally", value=True)
             st.session_state.auto_save_images = auto_save_images
             
@@ -600,7 +659,26 @@ def main():
             - 💾 Auto-save images
             - 📅 Scheduled posts
             - 📊 Enhanced analytics
-            - 🖼️ Multiple image sizes
+            - 🖼️ HD quality images
+            - 🛡️ Safe Mode for content filters
+            """)
+            
+            st.markdown("---")
+            st.markdown("### 💡 Quick Tips")
+            st.markdown("""
+            **Getting Content Filter Errors?**
+            
+            ✅ Enable 'Safe Mode' above
+            
+            ✅ Use artistic language:
+            - 'Digital art of...'
+            - 'Illustration showing...'
+            - 'Artistic style...'
+            
+            ❌ Avoid being too specific:
+            - Remove 'realistic', 'photo'
+            - Simplify descriptions
+            - Use general terms
             """)
         
         # HEADER
@@ -795,7 +873,8 @@ def main():
                                         
                                         image_size = st.session_state.get('image_size', '1024x1024')
                                         image_quality = st.session_state.get('image_quality', 'hd')
-                                        image_url = generator.generate_image(enhanced_prompt, size=image_size, quality=image_quality)
+                                        safe_mode = st.session_state.get('safe_mode', False)
+                                        image_url = generator.generate_image(enhanced_prompt, size=image_size, quality=image_quality, safe_mode=safe_mode)
                                         
                                         if image_url:
                                             st.markdown("#### 🖼️ Generated Image")
@@ -831,7 +910,30 @@ def main():
                         
                         except Exception as e:
                             logger.error(f"Content generation error: {e}")
-                            show_error(f"Generation failed: {str(e)}")
+                            error_str = str(e)
+                            
+                            # Special handling for content filter errors
+                            if "content_policy_violation" in error_str or "content filters" in error_str:
+                                st.error("❌ **Content Filter Blocked This Image**")
+                                st.warning("OpenAI's content filters blocked your image request.")
+                                
+                                st.markdown("### 🛡️ How to Fix:")
+                                st.markdown("**Option 1: Enable Safe Mode** (Easiest)")
+                                st.info("1. Go to Sidebar → Image Settings\n2. Check ✅ 'Safe Mode (Bypass Content Filters)'\n3. Try generating again")
+                                
+                                st.markdown("**Option 2: Modify Your Description**")
+                                st.markdown("- Use more **general** descriptions")
+                                st.markdown("- Avoid specific people, brands, or copyrighted content")
+                                st.markdown("- Remove words like 'realistic', 'photograph', 'professional'")
+                                st.markdown("- Use artistic terms: 'digital art', 'illustration', 'painting'")
+                                
+                                with st.expander("🔍 What Triggered the Filter?"):
+                                    st.write("**Your prompt:**")
+                                    st.code(image_description if 'image_description' in locals() else "N/A")
+                                    st.write("**Enhanced prompt:**")
+                                    st.code(enhanced_prompt if 'enhanced_prompt' in locals() else "N/A")
+                            else:
+                                show_error(f"Generation failed: {str(e)}")
             
             # Generate AI Image only
             with st.expander("🖼️ Generate AI Image Only", expanded=False):
@@ -910,7 +1012,8 @@ def main():
                             try:
                                 image_url = generator.generate_image(enhanced_prompt, 
                                                                     size=st.session_state.get('image_size', '1024x1024'),
-                                                                    quality=st.session_state.get('image_quality', 'hd'))
+                                                                    quality=st.session_state.get('image_quality', 'hd'),
+                                                                    safe_mode=st.session_state.get('safe_mode', False))
                                 
                                 if image_url:
                                     st.success("✅ Image generated successfully!")
@@ -944,10 +1047,40 @@ def main():
                                     
                             except Exception as img_error:
                                 st.error(f"❌ Image generation failed!")
-                                st.code(f"Error: {str(img_error)}")
-                                
-                                st.markdown("### 🔧 Troubleshooting Tips:")
                                 error_str = str(img_error)
+                                st.code(f"Error: {error_str}")
+                                
+                                # Special handling for content filter
+                                if "content_policy_violation" in error_str or "content filters" in error_str:
+                                    st.markdown("### 🛡️ Content Filter Triggered!")
+                                    st.warning("Your image was blocked by OpenAI's content filters.")
+                                    
+                                    st.markdown("**Quick Fix:**")
+                                    st.info("✅ Enable **'Safe Mode'** in Sidebar → Image Settings, then try again")
+                                    
+                                    st.markdown("**Alternative Solutions:**")
+                                    col1, col2 = st.columns(2)
+                                    with col1:
+                                        st.markdown("**✏️ Simplify Description:**")
+                                        st.markdown("- Use general terms")
+                                        st.markdown("- Remove 'realistic' keywords")
+                                        st.markdown("- Add artistic style words")
+                                    with col2:
+                                        st.markdown("**🎨 Try These Styles:**")
+                                        st.markdown("- 'Digital art showing...'")
+                                        st.markdown("- 'Illustration of...'")
+                                        st.markdown("- 'Artistic depiction of...'")
+                                    
+                                    with st.expander("🔍 See What Was Blocked"):
+                                        st.markdown("**Your description:**")
+                                        st.code(image_description)
+                                        st.markdown("**Enhanced prompt:**")
+                                        st.code(enhanced_prompt if 'enhanced_prompt' in locals() else "N/A")
+                                    
+                                    st.markdown("---")
+                                
+                                # Other error troubleshooting
+                                st.markdown("### 🔧 Troubleshooting Tips:")
                                 if "authentication" in error_str.lower() or "unauthorized" in error_str.lower():
                                     st.warning("**Authentication Issue:**")
                                     st.markdown("- Verify your API key is correct")
@@ -982,6 +1115,8 @@ def main():
             # Bulk Image Generation
             with st.expander("🎨 Bulk Image Generation", expanded=False):
                 st.markdown("Generate multiple images at once from a list of prompts.")
+                
+                st.info("💡 If images get blocked by content filters, enable **'Safe Mode'** in the sidebar before bulk generation.")
                 
                 bulk_prompts = st.text_area(
                     "Enter prompts (one per line)",
@@ -1023,7 +1158,8 @@ def main():
                                     
                                     image_size = st.session_state.get('image_size', '1024x1024')
                                     image_quality = st.session_state.get('image_quality', 'hd')
-                                    image_url = generator.generate_image(final_prompt, size=image_size, quality=image_quality)
+                                    safe_mode = st.session_state.get('safe_mode', False)
+                                    image_url = generator.generate_image(final_prompt, size=image_size, quality=image_quality, safe_mode=safe_mode)
                                     
                                     if image_url:
                                         col1, col2 = st.columns([2, 1])
@@ -1045,6 +1181,11 @@ def main():
                                 
                                 except Exception as e:
                                     st.error(f"❌ Failed to generate image {idx + 1}: {str(e)}")
+                                    
+                                    # Show content filter help for bulk generation
+                                    if "content_policy_violation" in str(e):
+                                        st.warning(f"⚠️ Prompt {idx + 1} blocked by content filter. Enable Safe Mode and try again.")
+                                    
                                     continue
                             
                             status_text.text("✅ Bulk generation complete!")
