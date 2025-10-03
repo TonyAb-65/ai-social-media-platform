@@ -182,17 +182,18 @@ Generate the caption now:"""
             logger.error(f"Caption generation error: {e}")
             raise
     
-    def generate_image(self, prompt: str, size: str = "1024x1024") -> str:
-        """Generate image using DALL-E 3"""
+    def generate_image(self, prompt: str, size: str = "1024x1024", quality: str = "hd") -> str:
+        """Generate image using DALL-E 3 with HD quality"""
         try:
             logger.info(f"Starting DALL-E 3 image generation...")
             logger.info(f"Prompt: {prompt[:100]}...")
+            logger.info(f"Quality: {quality}, Size: {size}")
             
             response = self.client.images.generate(
                 model="dall-e-3",
                 prompt=prompt,
                 size=size,
-                quality="standard",
+                quality=quality,  # "hd" for high quality, "standard" for faster/cheaper
                 n=1
             )
             
@@ -241,28 +242,51 @@ class PromptEngineer:
         logger.info(f"PromptEngineer initialized with key: {self.api_key[:10]}...{self.api_key[-4:]}")
     
     def enhance_for_dalle(self, user_prompt: str) -> str:
-        """Enhance user prompt for DALL-E 3 using GPT-4"""
+        """Enhance user prompt for DALL-E 3 using GPT-4 with focus on photorealism when needed"""
         try:
             logger.info(f"Enhancing prompt: {user_prompt[:50]}...")
             
-            enhancement_instructions = f"""You are a DALL-E 3 prompt expert. Enhance this prompt for better image generation:
+            # Detect if user wants real photos (humans, people, portraits, etc.)
+            photo_keywords = ['person', 'people', 'human', 'man', 'woman', 'portrait', 'face', 'selfie', 
+                            'photograph', 'photo', 'realistic', 'real', 'professional', 'model', 'business']
+            wants_photorealism = any(keyword in user_prompt.lower() for keyword in photo_keywords)
+            
+            # Build enhancement instructions based on desired style
+            if wants_photorealism:
+                style_instructions = """CRITICAL: This must be a PHOTOREALISTIC image, not animation or cartoon.
+
+Required specifications:
+1. Style: Professional photography, shot on high-end camera (Canon EOS R5, Sony A7R IV)
+2. Realism: Photorealistic human features, natural skin texture, real lighting
+3. Quality: High resolution, sharp focus, detailed textures
+4. Lighting: Natural lighting or professional studio setup
+5. NO cartoon, NO animation, NO illustrated style, NO digital art
+6. Must look like a real photograph that could appear in a magazine or professional portfolio
+
+"""
+            else:
+                style_instructions = """Choose the most appropriate art style for this image (digital art, illustration, photorealistic, etc.).
+
+"""
+
+            enhancement_instructions = f"""{style_instructions}You are a DALL-E 3 prompt expert. Enhance this prompt for better image generation:
 
 User prompt: {user_prompt}
 
 Create a detailed, professional DALL-E 3 prompt that:
 1. Keeps the core idea but adds rich visual details
-2. Specifies art style (photorealistic, digital art, etc.)
-3. Includes lighting and atmosphere
-4. Mentions composition and perspective
-5. Is vivid and specific
-6. Is under 1000 characters
+2. Specifies the exact art style needed (photorealistic if humans/people are involved)
+3. Includes specific lighting details (golden hour, studio lighting, natural light, etc.)
+4. Mentions camera angle and composition
+5. Adds atmospheric and environmental details
+6. Is vivid, specific, and under 1000 characters
 
 Enhanced prompt:"""
 
             response = self.client.chat.completions.create(
                 model="gpt-4",
                 messages=[
-                    {"role": "system", "content": "You are an expert at writing DALL-E 3 prompts."},
+                    {"role": "system", "content": "You are an expert at writing DALL-E 3 prompts. When users want photos of people, you ALWAYS specify photorealistic, professional photography style to avoid cartoon/animated results."},
                     {"role": "user", "content": enhancement_instructions}
                 ],
                 max_tokens=400,
@@ -271,7 +295,7 @@ Enhanced prompt:"""
             
             enhanced = response.choices[0].message.content.strip()
             enhanced = enhanced.strip('"').strip("'")
-            logger.info(f"✅ Prompt enhanced successfully!")
+            logger.info(f"✅ Prompt enhanced successfully! (Photorealism: {wants_photorealism})")
             return enhanced
             
         except Exception as e:
@@ -383,6 +407,8 @@ def init_session_state():
         st.session_state.selected_language = "en"
     if 'image_size' not in st.session_state:
         st.session_state.image_size = "1024x1024"
+    if 'image_quality' not in st.session_state:
+        st.session_state.image_quality = "hd"
     if 'auto_save_images' not in st.session_state:
         st.session_state.auto_save_images = True
 
@@ -545,6 +571,14 @@ def main():
                 help="Size for DALL-E 3 images"
             )
             st.session_state.image_size = image_size
+            
+            image_quality = st.selectbox(
+                "Image Quality",
+                ["HD (High Quality)", "Standard (Faster)"],
+                index=0,
+                help="HD = Better quality but slower & more expensive. Standard = Faster & cheaper"
+            )
+            st.session_state.image_quality = "hd" if "HD" in image_quality else "standard"
             
             auto_save_images = st.checkbox("Auto-save images locally", value=True)
             st.session_state.auto_save_images = auto_save_images
@@ -726,6 +760,8 @@ def main():
                         placeholder="A vibrant summer fashion scene with colorful outfits...",
                         height=100
                     )
+                    
+                    st.info("💡 **Pro Tip:** For real photos of people, use keywords like: 'professional photograph', 'realistic person', 'portrait photography'. For artistic images, describe the style you want.")
                 
                 if st.button("🚀 Generate & Schedule", key="generate_post", use_container_width=True):
                     if not st.session_state.get('api_key', ''):
@@ -758,7 +794,8 @@ def main():
                                             st.markdown(f"**Enhanced:** {enhanced_prompt}")
                                         
                                         image_size = st.session_state.get('image_size', '1024x1024')
-                                        image_url = generator.generate_image(enhanced_prompt, size=image_size)
+                                        image_quality = st.session_state.get('image_quality', 'hd')
+                                        image_url = generator.generate_image(enhanced_prompt, size=image_size, quality=image_quality)
                                         
                                         if image_url:
                                             st.markdown("#### 🖼️ Generated Image")
@@ -806,6 +843,8 @@ def main():
                     key="image_only_desc",
                     height=100
                 )
+                
+                st.info("💡 **For Real Photos:** Include 'professional photograph of a person/woman/man' or 'realistic portrait'. **For Art:** Describe style like 'digital art', 'watercolor', 'illustration'")
                 
                 if not st.session_state.get('api_key', ''):
                     st.warning("⚠️ Please enter your OpenAI API key in the sidebar first")
@@ -869,7 +908,9 @@ def main():
                             st.write(f"Using prompt (first 100 chars): {enhanced_prompt[:100]}...")
                             
                             try:
-                                image_url = generator.generate_image(enhanced_prompt)
+                                image_url = generator.generate_image(enhanced_prompt, 
+                                                                    size=st.session_state.get('image_size', '1024x1024'),
+                                                                    quality=st.session_state.get('image_quality', 'hd'))
                                 
                                 if image_url:
                                     st.success("✅ Image generated successfully!")
@@ -981,7 +1022,8 @@ def main():
                                         final_prompt = engineer.enhance_for_dalle(prompt)
                                     
                                     image_size = st.session_state.get('image_size', '1024x1024')
-                                    image_url = generator.generate_image(final_prompt, size=image_size)
+                                    image_quality = st.session_state.get('image_quality', 'hd')
+                                    image_url = generator.generate_image(final_prompt, size=image_size, quality=image_quality)
                                     
                                     if image_url:
                                         col1, col2 = st.columns([2, 1])
