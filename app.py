@@ -528,13 +528,20 @@ class ReelGenerator:
     """Handles video/reel generation using Replicate API"""
     
     def __init__(self, api_key: str):
-        """Initialize with Replicate API key"""
+        """Initialize with Replicate API key (NOT OpenAI key!)"""
         if not api_key:
             raise ValueError("Replicate API key cannot be empty")
         
+        # Clean the Replicate API key
         self.api_key = ''.join(api_key.split())
+        
+        # Replicate keys typically start with 'r8_'
+        if not self.api_key.startswith('r8_'):
+            logger.warning(f"Warning: Replicate API keys usually start with 'r8_'. Your key starts with: {self.api_key[:3]}")
+        
+        # Set as environment variable for Replicate library
         os.environ["REPLICATE_API_TOKEN"] = self.api_key
-        logger.info(f"ReelGenerator initialized with Replicate API")
+        logger.info(f"ReelGenerator initialized with Replicate API key: {self.api_key[:10]}...")
     
     def test_connection(self) -> dict:
         """Test Replicate API connection"""
@@ -972,7 +979,8 @@ def main():
             st.markdown("---")
             
             # NEW: Replicate API Key for Video/Reels
-            st.markdown("### 🎬 Replicate API (for Reels)")
+            st.markdown("### 🎬 Replicate API (Videos/Reels)")
+            st.info("⚠️ Different from OpenAI! This is for video generation only.")
             
             replicate_key_from_secrets = st.secrets.get("REPLICATE_API_KEY", "")
             
@@ -980,38 +988,50 @@ def main():
                 st.success("✅ Replicate API key loaded from secrets")
                 replicate_key = replicate_key_from_secrets
             else:
-                st.info("💡 Add REPLICATE_API_KEY to secrets.toml for video/reel generation")
+                st.markdown("💡 **Get FREE key:** https://replicate.com/account/api-tokens")
                 replicate_key = st.text_input(
-                    "Replicate API Key",
+                    "Replicate API Key (starts with r8_)",
                     type="password",
-                    help="Get your key from https://replicate.com/account/api-tokens",
-                    key="replicate_key_input"
+                    help="Different from OpenAI key! Get from https://replicate.com/account/api-tokens",
+                    key="replicate_key_input",
+                    placeholder="r8_..."
                 )
             
             if replicate_key:
                 cleaned_rep_key = ''.join(replicate_key.split())
-                st.session_state.replicate_api_key = cleaned_rep_key
-                st.success(f"✅ Replicate key stored (length: {len(cleaned_rep_key)})")
                 
-                if REPLICATE_AVAILABLE and st.button("🎬 Test Replicate Connection", key="test_replicate", use_container_width=True):
-                    with st.spinner("Testing Replicate API..."):
-                        try:
-                            reel_gen = ReelGenerator(st.session_state.replicate_api_key)
-                            result = reel_gen.test_connection()
-                            
-                            if result["success"]:
-                                st.success(f"✅ {result['message']}")
-                                st.balloons()
-                            else:
-                                st.error(f"❌ {result['message']}")
-                        except Exception as e:
-                            st.error(f"❌ Connection test failed: {str(e)}")
+                # Validate Replicate key format
+                if cleaned_rep_key.startswith('r8_'):
+                    st.session_state.replicate_api_key = cleaned_rep_key
+                    st.success(f"✅ Replicate key stored (length: {len(cleaned_rep_key)})")
+                elif cleaned_rep_key.startswith('sk-'):
+                    st.error("❌ This is an OpenAI key! Replicate keys start with 'r8_'")
+                    st.warning("Get Replicate key at: https://replicate.com/account/api-tokens")
+                    st.session_state.replicate_api_key = ""
+                else:
+                    st.warning(f"⚠️ Replicate keys usually start with 'r8_'. Your key starts with: {cleaned_rep_key[:3]}")
+                    st.session_state.replicate_api_key = cleaned_rep_key
+                
+                if st.session_state.get('replicate_api_key', '') and REPLICATE_AVAILABLE:
+                    if st.button("🎬 Test Replicate Connection", key="test_replicate", use_container_width=True):
+                        with st.spinner("Testing Replicate API..."):
+                            try:
+                                reel_gen = ReelGenerator(st.session_state.replicate_api_key)
+                                result = reel_gen.test_connection()
+                                
+                                if result["success"]:
+                                    st.success(f"✅ {result['message']}")
+                                    st.balloons()
+                                else:
+                                    st.error(f"❌ {result['message']}")
+                            except Exception as e:
+                                st.error(f"❌ Connection test failed: {str(e)}")
             else:
                 st.warning("⚠️ Enter Replicate API key to create videos/reels")
             
             if not REPLICATE_AVAILABLE:
                 st.error("⚠️ Replicate library not installed")
-                st.code("pip install replicate")
+                st.code("Add 'replicate' to requirements.txt")
             
             st.markdown("---")
             st.markdown("### 📊 Navigation")
@@ -1079,6 +1099,16 @@ def main():
             - OpenAI GPT-4 & DALL-E 3
             - Replicate AI (Videos)
             - Streamlit
+            
+            **🔑 API Keys Needed:**
+            
+            1️⃣ **OpenAI API Key** (starts with `sk-`)
+            - For: Text captions, images
+            - Get: https://platform.openai.com/api-keys
+            
+            2️⃣ **Replicate API Key** (starts with `r8_`)
+            - For: Videos, reels, animations
+            - Get: https://replicate.com/account/api-tokens
             
             **Features:**
             - 🌍 Multi-language (10+ languages)
@@ -1281,6 +1311,22 @@ def main():
             with st.expander("📤 Upload Product Image → Create Post & Reel", expanded=True):
                 st.markdown("Upload your product image and let AI create marketing posts and reels!")
                 
+                # Show which APIs are available
+                col_status1, col_status2 = st.columns(2)
+                with col_status1:
+                    if st.session_state.get('api_key', ''):
+                        st.success("✅ OpenAI API (for captions)")
+                    else:
+                        st.warning("⚠️ OpenAI API needed (for captions)")
+                
+                with col_status2:
+                    if st.session_state.get('replicate_api_key', ''):
+                        st.success("✅ Replicate API (for reels)")
+                    else:
+                        st.warning("⚠️ Replicate API needed (for reels)")
+                
+                st.info("💡 **Note:** Caption = OpenAI (sk-...) | Reel = Replicate (r8_...)")
+                
                 # File uploader
                 uploaded_file = st.file_uploader(
                     "Upload Product Image",
@@ -1387,12 +1433,23 @@ def main():
                                 show_error("Replicate library not installed. Run: pip install replicate")
                             else:
                                 try:
+                                    # ONLY use Replicate API - NO OpenAI needed
                                     reel_gen = ReelGenerator(st.session_state.replicate_api_key)
                                     
                                     with st.spinner("🎬 Creating reel from your product... (1-3 minutes)"):
+                                        # First, upload image to a public URL or use local path
+                                        # For Replicate, we need the image URL
+                                        st.write("**Step 1:** Preparing image...")
+                                        
+                                        # Create a temporary URL for the uploaded image
+                                        # Since we saved it locally, we can use the file path
+                                        image_file_url = f"file://{upload_path}"
+                                        
+                                        st.write("**Step 2:** Generating video with AI...")
+                                        
                                         # Use Stable Video Diffusion to animate the product image
                                         video_url = reel_gen.generate_video(
-                                            prompt=f"Product showcase, smooth camera movement, professional marketing video, {additional_context}",
+                                            prompt=f"Product showcase, smooth camera movement, professional marketing video, {additional_context if additional_context else 'high quality'}",
                                             model="stability-ai/stable-video-diffusion:3f0457e4619daac51203dedb472816fd4af51f3149fa7a9e0b5ffcf1b8172438",
                                             image_url=str(upload_path)
                                         )
@@ -1402,30 +1459,43 @@ def main():
                                             st.video(video_url)
                                             
                                             # Save video
+                                            st.write("**Step 3:** Saving video...")
                                             video_path = save_video_locally(video_url, f"product_reel_{uploaded_file.name}")
                                             if video_path:
                                                 video_id = save_video_to_db(conn, video_url, f"Product reel from {uploaded_file.name}", video_path, "Stable Video Diffusion")
                                                 show_success("🎉 Reel created and saved to library!")
+                                            
+                                            st.balloons()
+                                        else:
+                                            show_error("Failed to generate video")
                                 
                                 except Exception as e:
                                     show_error(f"Reel generation failed: {str(e)}")
+                                    st.code(str(e))
+                                    
+                                    st.markdown("### 🔧 Debug Info:")
+                                    st.markdown(f"- Replicate API key present: {bool(st.session_state.get('replicate_api_key', ''))}")
+                                    st.markdown(f"- Replicate library available: {REPLICATE_AVAILABLE}")
+                                    st.markdown(f"- Image path: {upload_path}")
                     
                     with col_c:
                         if st.button("🚀 Generate Both", key="gen_both", use_container_width=True):
+                            # Check both API keys
                             if not st.session_state.get('api_key', ''):
-                                show_error("Please enter your OpenAI API key in the sidebar!")
+                                show_error("Please enter your OpenAI API key in the sidebar (for caption generation)!")
                             elif not st.session_state.get('replicate_api_key', ''):
-                                show_error("Please enter your Replicate API key in the sidebar!")
+                                show_error("Please enter your Replicate API key in the sidebar (for reel generation)!")
                             elif not REPLICATE_AVAILABLE:
-                                show_error("Replicate library not installed. Run: pip install replicate")
+                                show_error("Replicate library not installed. Add 'replicate' to requirements.txt")
                             else:
                                 try:
-                                    generator = ContentGenerator(st.session_state.get('api_key', ''))
-                                    reel_gen = ReelGenerator(st.session_state.replicate_api_key)
+                                    # Initialize BOTH generators with CORRECT keys
+                                    generator = ContentGenerator(st.session_state.get('api_key', ''))  # OpenAI key
+                                    reel_gen = ReelGenerator(st.session_state.get('replicate_api_key', ''))  # Replicate key
                                     
                                     with st.spinner("✨ Creating complete marketing package..."):
-                                        # Step 1: Generate Caption
-                                        st.write("**Step 1/2:** Generating AI caption...")
+                                        # Step 1: Generate Caption with OpenAI
+                                        st.write("**Step 1/2:** Generating AI caption with GPT-4 Vision...")
                                         selected_lang = st.session_state.get('selected_language', 'en')
                                         
                                         caption = generator.generate_caption_from_image(
@@ -1439,20 +1509,22 @@ def main():
                                         st.markdown("#### 📝 Generated Caption")
                                         st.success(caption)
                                         
-                                        # Step 2: Generate Reel
-                                        st.write("**Step 2/2:** Creating product reel... (1-3 minutes)")
+                                        # Step 2: Generate Reel with Replicate
+                                        st.write("**Step 2/2:** Creating product reel with Replicate AI... (1-3 minutes)")
                                         
                                         video_url = reel_gen.generate_video(
-                                            prompt=f"Product showcase, smooth camera movement, professional marketing video, {additional_context}",
+                                            prompt=f"Product showcase, smooth camera movement, professional marketing video, {additional_context if additional_context else 'high quality'}",
                                             model="stability-ai/stable-video-diffusion:3f0457e4619daac51203dedb472816fd4af51f3149fa7a9e0b5ffcf1b8172438",
                                             image_url=str(upload_path)
                                         )
                                         
+                                        video_path = None
                                         if video_url:
                                             st.markdown("#### 🎬 Generated Reel")
                                             st.video(video_url)
                                             
                                             # Save video
+                                            st.write("**Step 3:** Saving everything...")
                                             video_path = save_video_locally(video_url, f"product_reel_{uploaded_file.name}")
                                             if video_path:
                                                 video_id = save_video_to_db(conn, video_url, f"Product reel from {uploaded_file.name}", video_path, "Stable Video Diffusion")
@@ -1476,6 +1548,12 @@ def main():
                                 
                                 except Exception as e:
                                     show_error(f"Generation failed: {str(e)}")
+                                    st.code(str(e))
+                                    
+                                    st.markdown("### 🔧 Debug Info:")
+                                    st.markdown(f"- OpenAI API key present: {bool(st.session_state.get('api_key', ''))}")
+                                    st.markdown(f"- Replicate API key present: {bool(st.session_state.get('replicate_api_key', ''))}")
+                                    st.markdown(f"- Error: {str(e)}")
                 else:
                     st.info("👆 Upload a product image to get started!")
                     st.markdown("**💡 Perfect for:**")
