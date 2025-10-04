@@ -553,7 +553,7 @@ class ReelGenerator:
             return {"success": False, "message": f"Connection failed: {str(e)}", "error": str(e)}
     
     def generate_video(self, prompt: str, model: str = "stability-ai/stable-video-diffusion", 
-                      image_url: str = None, duration: int = 3) -> str:
+                      image_path: str = None, duration: int = 3) -> str:
         """Generate video using Replicate models"""
         try:
             logger.info(f"Starting video generation with {model}...")
@@ -561,16 +561,43 @@ class ReelGenerator:
             
             # Different models have different inputs
             if "stable-video-diffusion" in model:
-                # Requires an input image
-                if not image_url:
+                # Requires an input image - convert to base64 data URI
+                if not image_path:
                     raise ValueError("Stable Video Diffusion requires an input image")
+                
+                # Read and encode image as base64 data URI
+                import base64
+                from pathlib import Path
+                
+                logger.info(f"Reading image from: {image_path}")
+                
+                with open(image_path, 'rb') as f:
+                    image_data = f.read()
+                
+                # Encode to base64
+                base64_image = base64.b64encode(image_data).decode('utf-8')
+                
+                # Get image mime type
+                file_ext = Path(image_path).suffix.lower()
+                mime_types = {
+                    '.jpg': 'image/jpeg',
+                    '.jpeg': 'image/jpeg',
+                    '.png': 'image/png',
+                    '.webp': 'image/webp'
+                }
+                mime_type = mime_types.get(file_ext, 'image/jpeg')
+                
+                # Create data URI
+                image_uri = f"data:{mime_type};base64,{base64_image}"
+                
+                logger.info(f"Image encoded successfully (size: {len(base64_image)} bytes)")
                 
                 output = replicate.run(
                     model,
                     input={
                         "cond_aug": 0.02,
                         "decoding_t": 7,
-                        "input_image": image_url,
+                        "input_image": image_uri,
                         "video_length": "14_frames_with_svd",
                         "sizing_strategy": "maintain_aspect_ratio",
                         "motion_bucket_id": 127,
@@ -1437,21 +1464,16 @@ def main():
                                     reel_gen = ReelGenerator(st.session_state.replicate_api_key)
                                     
                                     with st.spinner("🎬 Creating reel from your product... (1-3 minutes)"):
-                                        # First, upload image to a public URL or use local path
-                                        # For Replicate, we need the image URL
                                         st.write("**Step 1:** Preparing image...")
-                                        
-                                        # Create a temporary URL for the uploaded image
-                                        # Since we saved it locally, we can use the file path
-                                        image_file_url = f"file://{upload_path}"
+                                        st.info(f"Using image: {upload_path}")
                                         
                                         st.write("**Step 2:** Generating video with AI...")
                                         
-                                        # Use Stable Video Diffusion to animate the product image
+                                        # Pass LOCAL file path - it will be converted to base64 internally
                                         video_url = reel_gen.generate_video(
-                                            prompt=f"Product showcase, smooth camera movement, professional marketing video, {additional_context if additional_context else 'high quality'}",
+                                            prompt=f"Product showcase, smooth camera movement, professional marketing video",
                                             model="stability-ai/stable-video-diffusion:3f0457e4619daac51203dedb472816fd4af51f3149fa7a9e0b5ffcf1b8172438",
-                                            image_url=str(upload_path)
+                                            image_path=str(upload_path)  # Changed from image_url to image_path
                                         )
                                         
                                         if video_url:
@@ -1475,8 +1497,10 @@ def main():
                                     
                                     st.markdown("### 🔧 Debug Info:")
                                     st.markdown(f"- Replicate API key present: {bool(st.session_state.get('replicate_api_key', ''))}")
+                                    st.markdown(f"- Replicate API key starts with: {st.session_state.get('replicate_api_key', '')[:3]}")
                                     st.markdown(f"- Replicate library available: {REPLICATE_AVAILABLE}")
                                     st.markdown(f"- Image path: {upload_path}")
+                                    st.markdown(f"- Image exists: {Path(upload_path).exists()}")
                     
                     with col_c:
                         if st.button("🚀 Generate Both", key="gen_both", use_container_width=True):
@@ -1513,9 +1537,9 @@ def main():
                                         st.write("**Step 2/2:** Creating product reel with Replicate AI... (1-3 minutes)")
                                         
                                         video_url = reel_gen.generate_video(
-                                            prompt=f"Product showcase, smooth camera movement, professional marketing video, {additional_context if additional_context else 'high quality'}",
+                                            prompt=f"Product showcase, smooth camera movement, professional marketing video",
                                             model="stability-ai/stable-video-diffusion:3f0457e4619daac51203dedb472816fd4af51f3149fa7a9e0b5ffcf1b8172438",
-                                            image_url=str(upload_path)
+                                            image_path=str(upload_path)  # Changed from image_url to image_path
                                         )
                                         
                                         video_path = None
@@ -2049,6 +2073,7 @@ def main():
                         
                         # If model requires image
                         input_image_url = None
+                        input_image_path = None
                         if selected_model.get('requires_image'):
                             st.warning("⚠️ This model requires an input image to animate")
                             
@@ -2064,12 +2089,31 @@ def main():
                                     
                                     selected_img = saved_images[selected_img_idx]
                                     input_image_url = selected_img['url']
+                                    input_image_path = selected_img.get('local_path', None)
                                     
-                                    st.image(input_image_url, caption="Selected Image", use_column_width=True)
+                                    # Display the selected image
+                                    if input_image_path and Path(input_image_path).exists():
+                                        st.image(input_image_path, caption="Selected Image", use_column_width=True)
+                                    else:
+                                        st.image(input_image_url, caption="Selected Image", use_column_width=True)
                                 else:
-                                    input_image_url = st.text_input("Or enter image URL", placeholder="https://...")
+                                    # Manual file upload
+                                    uploaded_img = st.file_uploader("Upload image", type=['png', 'jpg', 'jpeg', 'webp'], key="manual_img_upload")
+                                    if uploaded_img:
+                                        # Save temporarily
+                                        temp_path = IMAGES_DIR / f"temp_{uploaded_img.name}"
+                                        with open(temp_path, 'wb') as f:
+                                            f.write(uploaded_img.read())
+                                        input_image_path = str(temp_path)
+                                        st.image(input_image_path, caption="Uploaded Image", use_column_width=True)
                             else:
-                                input_image_url = st.text_input("Enter image URL", placeholder="https://...")
+                                uploaded_img = st.file_uploader("Upload image", type=['png', 'jpg', 'jpeg', 'webp'], key="manual_img_upload2")
+                                if uploaded_img:
+                                    temp_path = IMAGES_DIR / f"temp_{uploaded_img.name}"
+                                    with open(temp_path, 'wb') as f:
+                                        f.write(uploaded_img.read())
+                                    input_image_path = str(temp_path)
+                                    st.image(input_image_path, caption="Uploaded Image", use_column_width=True)
                         
                         col1, col2 = st.columns(2)
                         with col1:
@@ -2080,8 +2124,8 @@ def main():
                         if st.button("🎬 Generate Reel/Video", key="gen_reel", use_container_width=True):
                             if not video_prompt or len(video_prompt.strip()) < 5:
                                 st.error("❌ Please provide a description for your video")
-                            elif selected_model.get('requires_image') and not input_image_url:
-                                st.error("❌ This model requires an input image")
+                            elif selected_model.get('requires_image') and not input_image_path:
+                                st.error("❌ This model requires an input image. Please upload or select an image.")
                             else:
                                 with st.spinner("🎬 Creating your reel... This may take 1-3 minutes..."):
                                     try:
@@ -2096,7 +2140,7 @@ def main():
                                         video_url = reel_gen.generate_video(
                                             prompt=video_prompt,
                                             model=selected_model['id'],
-                                            image_url=input_image_url,
+                                            image_path=input_image_path,  # Changed from image_url
                                             duration=video_duration
                                         )
                                         
