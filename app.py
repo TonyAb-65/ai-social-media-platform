@@ -1561,7 +1561,227 @@ def main():
                     st.markdown("- 📱 Social media ads")
                     st.markdown("- 🎁 Promotional content")
             
-            with st.expander("🎨 Generate Caption & Image", expanded=True):
+            # NEW UNIFIED FLOW: Enter description → Enhance → Choose Image or Video
+            with st.expander("✨ AI-Enhanced Image or Video Generation", expanded=True):
+                st.markdown("**Enter a description → AI enhances it → Choose to generate Image OR Video**")
+                
+                has_replicate = bool(st.session_state.get('replicate_api_key', ''))
+                has_openai = bool(st.session_state.get('api_key', ''))
+                
+                if not has_openai:
+                    st.warning("⚠️ OpenAI API key required for prompt enhancement. Add it in the sidebar.")
+                
+                # Optional image upload for image-to-video
+                st.markdown("**Optional:** Upload an image to animate it into a video (image-to-video)")
+                optional_image = st.file_uploader(
+                    "Upload Image (Optional - for video generation)",
+                    type=['png', 'jpg', 'jpeg', 'webp'],
+                    key="unified_optional_image",
+                    help="Leave empty for text-to-video, or upload for image-to-video"
+                )
+                
+                optional_image_path = None
+                if optional_image:
+                    st.image(optional_image, caption="Your Image (will be animated)", width=300)
+                    
+                    # Save uploaded image
+                    image_bytes = optional_image.read()
+                    optional_image.seek(0)
+                    
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    upload_filename = f"unified_{timestamp}_{optional_image.name}"
+                    optional_image_path = IMAGES_DIR / upload_filename
+                    
+                    with open(optional_image_path, 'wb') as f:
+                        f.write(image_bytes)
+                    
+                    st.success(f"✅ Image uploaded - will use for image-to-video generation")
+                else:
+                    st.info("💡 No image uploaded - will generate video from text description")
+                
+                st.markdown("---")
+                
+                description_input = st.text_area(
+                    "Enter your description",
+                    placeholder="A professional product showcase with dramatic lighting and smooth motion...",
+                    height=100,
+                    key="unified_description"
+                )
+                
+                if st.button("✨ Enhance Prompt with AI", key="enhance_unified", use_container_width=True):
+                    if not description_input or len(description_input.strip()) < 5:
+                        show_error("Please provide a description (at least 5 characters)")
+                    elif not has_openai:
+                        show_error("OpenAI API key required for enhancement")
+                    else:
+                        try:
+                            with st.spinner("Enhancing your prompt with GPT-4..."):
+                                engineer = PromptEngineer(st.session_state.get('api_key', ''))
+                                
+                                # Enhance for images (DALL-E)
+                                enhanced_for_image = engineer.enhance_for_dalle(description_input)
+                                
+                                # Enhance for videos (using ReelGenerator's GPT-4 enhancement)
+                                reel_gen = ReelGenerator(
+                                    api_key=st.session_state.get('replicate_api_key', '') if has_replicate else 'dummy',
+                                    openai_api_key=st.session_state.get('api_key', '')
+                                )
+                                enhanced_for_video = reel_gen._enhance_with_gpt4(description_input)
+                                
+                                st.session_state.enhanced_image_prompt = enhanced_for_image
+                                st.session_state.enhanced_video_prompt = enhanced_for_video
+                                st.session_state.original_description = description_input
+                                
+                                show_success("✅ Prompts enhanced! Choose Image or Video below.")
+                        
+                        except Exception as e:
+                            show_error(f"Enhancement failed: {str(e)}")
+                
+                # Show enhanced prompts if available
+                if st.session_state.get('enhanced_image_prompt') and st.session_state.get('enhanced_video_prompt'):
+                    st.markdown("---")
+                    st.markdown("### 📝 Enhanced Prompts")
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        with st.expander("🖼️ View Enhanced Image Prompt"):
+                            st.text_area(
+                                "For DALL-E 3",
+                                st.session_state.enhanced_image_prompt,
+                                height=150,
+                                key="show_enhanced_image",
+                                disabled=True
+                            )
+                    
+                    with col2:
+                        with st.expander("🎬 View Enhanced Video Prompt"):
+                            st.text_area(
+                                "For Video Models",
+                                st.session_state.enhanced_video_prompt,
+                                height=150,
+                                key="show_enhanced_video",
+                                disabled=True
+                            )
+                    
+                    st.markdown("---")
+                    st.markdown("### 🎯 Choose What to Generate")
+                    
+                    col_a, col_b = st.columns(2)
+                    
+                    # GENERATE IMAGE
+                    with col_a:
+                        st.markdown("#### 🖼️ Generate Image")
+                        
+                        if st.button("Generate Image with DALL-E 3", key="gen_enhanced_image", use_container_width=True):
+                            if not has_openai:
+                                show_error("OpenAI API key required!")
+                            else:
+                                try:
+                                    generator = ContentGenerator(st.session_state.get('api_key', ''))
+                                    
+                                    with st.spinner("Creating AI image..."):
+                                        image_url = generator.generate_image(
+                                            st.session_state.enhanced_image_prompt,
+                                            size=st.session_state.get('image_size', '1024x1024'),
+                                            quality=st.session_state.get('image_quality', 'hd'),
+                                            safe_mode=st.session_state.get('safe_mode', False),
+                                            photo_style=st.session_state.get('photo_style', 'Photorealistic (Real Photos)')
+                                        )
+                                        
+                                        if image_url:
+                                            st.image(image_url, caption="Generated Image", use_column_width=True)
+                                            
+                                            if st.session_state.get('auto_save_images', True):
+                                                image_path = save_image_locally(image_url, st.session_state.original_description)
+                                                if image_path:
+                                                    st.success(f"💾 Saved: {Path(image_path).name}")
+                                                    image_id = save_image_to_db(conn, image_url, st.session_state.enhanced_image_prompt, image_path)
+                                                    if image_id:
+                                                        st.success("✅ Saved to Assets gallery!")
+                                            
+                                            show_success("🎉 Image generated!")
+                                            st.balloons()
+                                
+                                except Exception as e:
+                                    show_error(f"Image generation failed: {str(e)}")
+                    
+                    # GENERATE VIDEO
+                    with col_b:
+                        st.markdown("#### 🎬 Generate Video/Reel")
+                        
+                        # Show different options based on whether image is uploaded
+                        if optional_image_path:
+                            st.info("📸 Image uploaded - will animate your image")
+                            video_model_unified = "Stable Video Diffusion"
+                            st.caption(f"Using: {video_model_unified}")
+                        else:
+                            st.info("📝 Text-to-Video mode")
+                            video_model_unified = st.selectbox(
+                                "Model",
+                                ["AnimateDiff", "Zeroscope V2 XL"],
+                                key="unified_video_model"
+                            )
+                        
+                        video_duration_unified = st.selectbox(
+                            "Duration (seconds)",
+                            [3, 5, 10, 15, 20, 30],
+                            index=1,
+                            key="unified_video_duration"
+                        )
+                        
+                        if st.button(f"Generate {video_duration_unified}s Video", key="gen_enhanced_video", use_container_width=True):
+                            if not has_replicate:
+                                show_error("Replicate API key required! Add it in the sidebar.")
+                            else:
+                                try:
+                                    reel_gen = ReelGenerator(
+                                        api_key=st.session_state.get('replicate_api_key', ''),
+                                        openai_api_key=st.session_state.get('api_key', '')
+                                    )
+                                    
+                                    with st.spinner(f"Creating {video_duration_unified}s video... (1-3 minutes)"):
+                                        model_map = {
+                                            "AnimateDiff": "lucataco/animate-diff:beecf59c4aee8d81bf04f0381033dfa10dc16e845b4ae00d281e2fa377e48a9f",
+                                            "Zeroscope V2 XL": "anotherjesse/zeroscope-v2-xl:9f747673945c62801b13b84701c783929c0ee784e4748ec062204894dda1a351",
+                                            "Stable Video Diffusion": "stability-ai/stable-video-diffusion:3f0457e4619daac51203dedb472816fd4af51f3149fa7a9e0b5ffcf1b8172438"
+                                        }
+                                        
+                                        # Use the already enhanced prompt (skip re-enhancement)
+                                        video_url = reel_gen.generate_video(
+                                            prompt=st.session_state.enhanced_video_prompt,
+                                            model=model_map[video_model_unified],
+                                            image_path=str(optional_image_path) if optional_image_path else None,
+                                            duration=video_duration_unified,
+                                            improve_prompt=False  # Already enhanced
+                                        )
+                                        
+                                        if video_url:
+                                            st.success(f"✅ {video_duration_unified}s video created!")
+                                            st.video(video_url)
+                                            
+                                            video_path = save_video_locally(video_url, st.session_state.original_description)
+                                            if video_path:
+                                                video_id = save_video_to_db(
+                                                    conn,
+                                                    video_url,
+                                                    st.session_state.original_description,
+                                                    video_path,
+                                                    video_model_unified
+                                                )
+                                                if video_id:
+                                                    show_success("💾 Saved to Videos/Reels library!")
+                                                    st.balloons()
+                                        else:
+                                            show_error("Video generation returned no URL")
+                                
+                                except Exception as e:
+                                    show_error(f"Video generation failed: {str(e)}")
+                                    st.code(str(e))
+                else:
+                    st.info("💡 Enter a description above and click 'Enhance Prompt with AI' to get started.")
+            
+            with st.expander("🎨 Generate Caption & Image", expanded=False):
                 st.markdown("Create complete social media posts with AI-generated captions and images.")
                 
                 col1, col2 = st.columns(2)
