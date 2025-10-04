@@ -1454,53 +1454,107 @@ def main():
                     
                     with col_b:
                         if st.button("🎬 Generate Reel Only", key="gen_reel_only", use_container_width=True):
-                            if not st.session_state.get('replicate_api_key', ''):
+                            # CRITICAL: Check ONLY Replicate key, never OpenAI
+                            rep_key = st.session_state.get('replicate_api_key', '')
+                            
+                            if not rep_key:
                                 show_error("Please enter your Replicate API key in the sidebar!")
+                            elif not rep_key.startswith('r8_'):
+                                show_error(f"Invalid Replicate API key! Must start with 'r8_', yours starts with: {rep_key[:3]}")
                             elif not REPLICATE_AVAILABLE:
-                                show_error("Replicate library not installed. Run: pip install replicate")
+                                show_error("Replicate library not installed. Add 'replicate' to requirements.txt")
                             else:
                                 try:
-                                    # ONLY use Replicate API - NO OpenAI needed
-                                    reel_gen = ReelGenerator(st.session_state.replicate_api_key)
+                                    # Create ONLY ReelGenerator - NEVER ContentGenerator
+                                    # Set environment variable directly to be absolutely sure
+                                    os.environ["REPLICATE_API_TOKEN"] = rep_key
+                                    
+                                    st.write("🔑 **Using Replicate API Key:**")
+                                    st.code(f"Key starts with: {rep_key[:10]}...\nKey ends with: ...{rep_key[-4:]}\nKey length: {len(rep_key)}")
+                                    
+                                    # Initialize Replicate generator
+                                    import replicate as rep_module
                                     
                                     with st.spinner("🎬 Creating reel from your product... (1-3 minutes)"):
                                         st.write("**Step 1:** Preparing image...")
-                                        st.info(f"Using image: {upload_path}")
+                                        st.info(f"Image: {Path(upload_path).name}")
                                         
-                                        st.write("**Step 2:** Generating video with AI...")
+                                        st.write("**Step 2:** Converting image to base64...")
                                         
-                                        # Pass LOCAL file path - it will be converted to base64 internally
-                                        video_url = reel_gen.generate_video(
-                                            prompt=f"Product showcase, smooth camera movement, professional marketing video",
-                                            model="stability-ai/stable-video-diffusion:3f0457e4619daac51203dedb472816fd4af51f3149fa7a9e0b5ffcf1b8172438",
-                                            image_path=str(upload_path)  # Changed from image_url to image_path
+                                        # Read and encode image
+                                        with open(upload_path, 'rb') as f:
+                                            image_data = f.read()
+                                        
+                                        import base64
+                                        base64_image = base64.b64encode(image_data).decode('utf-8')
+                                        
+                                        # Get mime type
+                                        file_ext = Path(upload_path).suffix.lower()
+                                        mime_types = {'.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp'}
+                                        mime_type = mime_types.get(file_ext, 'image/jpeg')
+                                        
+                                        # Create data URI
+                                        image_uri = f"data:{mime_type};base64,{base64_image}"
+                                        
+                                        st.success(f"✅ Image encoded ({len(base64_image)} bytes)")
+                                        
+                                        st.write("**Step 3:** Calling Replicate API to generate video...")
+                                        
+                                        # Call Replicate directly WITHOUT using any class
+                                        output = rep_module.run(
+                                            "stability-ai/stable-video-diffusion:3f0457e4619daac51203dedb472816fd4af51f3149fa7a9e0b5ffcf1b8172438",
+                                            input={
+                                                "cond_aug": 0.02,
+                                                "decoding_t": 7,
+                                                "input_image": image_uri,
+                                                "video_length": "14_frames_with_svd",
+                                                "sizing_strategy": "maintain_aspect_ratio",
+                                                "motion_bucket_id": 127,
+                                                "frames_per_second": 6
+                                            }
                                         )
                                         
-                                        if video_url:
-                                            st.markdown("#### 🎬 Generated Reel")
-                                            st.video(video_url)
-                                            
-                                            # Save video
-                                            st.write("**Step 3:** Saving video...")
-                                            video_path = save_video_locally(video_url, f"product_reel_{uploaded_file.name}")
-                                            if video_path:
-                                                video_id = save_video_to_db(conn, video_url, f"Product reel from {uploaded_file.name}", video_path, "Stable Video Diffusion")
-                                                show_success("🎉 Reel created and saved to library!")
-                                            
-                                            st.balloons()
+                                        # Get video URL from output
+                                        if isinstance(output, str):
+                                            video_url = output
+                                        elif isinstance(output, list) and len(output) > 0:
+                                            video_url = output[0]
                                         else:
-                                            show_error("Failed to generate video")
+                                            video_url = str(output)
+                                        
+                                        st.success("✅ Video generated!")
+                                        
+                                        st.write("**Step 4:** Displaying video...")
+                                        st.markdown("#### 🎬 Generated Reel")
+                                        st.video(video_url)
+                                        
+                                        # Save video
+                                        st.write("**Step 5:** Saving video...")
+                                        video_path = save_video_locally(video_url, f"product_reel_{uploaded_file.name}")
+                                        if video_path:
+                                            video_id = save_video_to_db(conn, video_url, f"Product reel from {uploaded_file.name}", video_path, "Stable Video Diffusion")
+                                            st.success("💾 Video saved to library!")
+                                        
+                                        st.balloons()
+                                        show_success("🎉 Reel created successfully!")
                                 
                                 except Exception as e:
                                     show_error(f"Reel generation failed: {str(e)}")
                                     st.code(str(e))
                                     
-                                    st.markdown("### 🔧 Debug Info:")
-                                    st.markdown(f"- Replicate API key present: {bool(st.session_state.get('replicate_api_key', ''))}")
-                                    st.markdown(f"- Replicate API key starts with: {st.session_state.get('replicate_api_key', '')[:3]}")
+                                    st.markdown("### 🔧 Complete Debug Info:")
+                                    st.markdown(f"- Replicate API key in session: {bool(st.session_state.get('replicate_api_key', ''))}")
+                                    st.markdown(f"- Replicate key starts with: {st.session_state.get('replicate_api_key', '')[:3]}")
+                                    st.markdown(f"- OpenAI key in session: {bool(st.session_state.get('api_key', ''))}")
+                                    st.markdown(f"- OpenAI key starts with: {st.session_state.get('api_key', '')[:3]}")
                                     st.markdown(f"- Replicate library available: {REPLICATE_AVAILABLE}")
                                     st.markdown(f"- Image path: {upload_path}")
                                     st.markdown(f"- Image exists: {Path(upload_path).exists()}")
+                                    st.markdown(f"- REPLICATE_API_TOKEN env var: {os.environ.get('REPLICATE_API_TOKEN', 'NOT SET')[:10]}...")
+                                    
+                                    # Show full traceback
+                                    import traceback
+                                    st.code(traceback.format_exc())
                     
                     with col_c:
                         if st.button("🚀 Generate Both", key="gen_both", use_container_width=True):
