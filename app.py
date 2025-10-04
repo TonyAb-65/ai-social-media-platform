@@ -1985,4 +1985,124 @@ def main():
                                 
                                 model_map = {
                                     "AnimateDiff": "lucataco/animate-diff:beecf59c4aee8d81bf04f0381033dfa10dc16e845b4ae00d281e2fa377e48a9f",
-                                    "Zeroscope V2 XL": "anotherjesse/zeroscope-v2-xl:9f747673945c62801b13b84701c783929c0ee784e4
+                                    "Zeroscope V2 XL": "anotherjesse/zeroscope-v2-xl:9f747673945c62801b13b84701c783929c0ee784e4748ec062204894dda1a351",
+                                    "Stable Video Diffusion": "stability-ai/stable-video-diffusion:3f0457e4619daac51203dedb472816fd4af51f3149fa7a9e0b5ffcf1b8172438"
+                                }
+                                
+                                video_url = reel_gen.generate_video(
+                                    prompt=video_prompt,
+                                    model=model_map[video_model],
+                                    image_path=str(upload_path) if upload_path else None,
+                                    duration=video_duration,
+                                    improve_prompt=enhance_prompt
+                                )
+                                
+                                if video_url:
+                                    st.success(f"✅ {video_duration}s video created!")
+                                    st.video(video_url)
+                                    
+                                    video_path = save_video_locally(video_url, video_prompt)
+                                    if video_path:
+                                        video_id = save_video_to_db(
+                                            conn, 
+                                            video_url, 
+                                            video_prompt, 
+                                            video_path, 
+                                            video_model
+                                        )
+                                        if video_id:
+                                            show_success("💾 Video saved to library!")
+                                            st.balloons()
+                                    else:
+                                        show_error("Failed to save video locally")
+                                else:
+                                    show_error("Video generation returned no URL")
+                        
+                        except Exception as e:
+                            show_error(f"Video generation failed: {str(e)}")
+                            st.code(str(e))
+        
+        # VIEW: INSIGHTS
+        elif "Insights" in view:
+            st.markdown("### 📈 Analytics & Insights")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("#### 📊 Performance Metrics")
+                metrics = pd.DataFrame({
+                    'Metric': ['Reach', 'Engagement', 'Clicks', 'Conversions'],
+                    'This Month': [45000, 12000, 3400, 890],
+                    'Last Month': [38000, 10500, 2900, 720]
+                })
+                st.dataframe(metrics, use_container_width=True, hide_index=True)
+            
+            with col2:
+                st.markdown("#### 🎯 Top Performing Content")
+                top_content = pd.DataFrame({
+                    'Post': ['Summer Sale Promo', 'Product Launch', 'Customer Story'],
+                    'Engagement': [5400, 4800, 3200],
+                    'ROI': ['340%', '280%', '220%']
+                })
+                st.dataframe(top_content, use_container_width=True, hide_index=True)
+        
+        # VIEW: SCHEDULED POSTS
+        elif "Scheduled Posts" in view:
+            st.markdown("### 📅 Scheduled Posts")
+            
+            scheduled_posts = get_scheduled_posts(conn)
+            
+            if not scheduled_posts:
+                st.info("📭 No scheduled posts yet. Create posts in 'Content Lab' to schedule them.")
+            else:
+                st.success(f"📊 Total Scheduled Posts: {len(scheduled_posts)}")
+                
+                st.markdown("---")
+                
+                for post in scheduled_posts:
+                    with st.expander(f"📅 {post['platform']} - {post['scheduled_datetime'][:16]}", expanded=False):
+                        col1, col2 = st.columns([2, 1])
+                        
+                        with col1:
+                            st.markdown("**📝 Caption:**")
+                            st.write(post['content'])
+                            
+                            if post.get('image_path') and os.path.exists(post['image_path']):
+                                st.markdown("**🖼️ Image:**")
+                                st.image(post['image_path'], width=400)
+                            elif post.get('image_url'):
+                                st.markdown("**🖼️ Image:**")
+                                st.image(post['image_url'], width=400)
+                            
+                            if post.get('video_path') and os.path.exists(post['video_path']):
+                                st.markdown("**🎬 Video:**")
+                                st.video(post['video_path'])
+                            elif post.get('video_url'):
+                                st.markdown("**🎬 Video:**")
+                                st.video(post['video_url'])
+                        
+                        with col2:
+                            st.markdown("**📊 Details:**")
+                            st.write(f"**Platform:** {post['platform']}")
+                            st.write(f"**Status:** {post['status']}")
+                            st.write(f"**Scheduled:** {post['scheduled_datetime'][:16]}")
+                            
+                            lang_code = post.get('language', 'en')
+                            lang_name = {v: k for k, v in LANGUAGES.items()}.get(lang_code, 'English')
+                            st.write(f"**Language:** {lang_name}")
+                            
+                            st.markdown("---")
+                            
+                            if st.button(f"🗑️ Delete Post", key=f"del_post_{post['id']}", use_container_width=True):
+                                if delete_scheduled_post(conn, post['id']):
+                                    show_success("Post deleted!")
+                                    st.rerun()
+                                else:
+                                    show_error("Failed to delete post")
+    
+    except Exception as e:
+        st.error(f"Application Error: {str(e)}")
+        logger.error(f"Application error: {e}")
+
+if __name__ == "__main__":
+    main()
