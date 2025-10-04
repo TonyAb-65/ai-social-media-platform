@@ -1605,8 +1605,21 @@ def main():
                     "Enter your description",
                     placeholder="A professional product showcase with dramatic lighting and smooth motion...",
                     height=100,
-                    key="unified_description"
+                    key="unified_desc_input"
                 )
+                
+                # Style selector for image generation
+                col_style1, col_style2 = st.columns(2)
+                with col_style1:
+                    image_style_unified = st.selectbox(
+                        "Image Style (for image generation)",
+                        ["Photorealistic (Real Photos)", "Digital Art", "Illustration", "Painting", "3D Render"],
+                        index=0,
+                        key="unified_image_style",
+                        help="Choose Photorealistic for real-looking images (cars, products, people)"
+                    )
+                with col_style2:
+                    st.info("💡 For real cars/products: Choose 'Photorealistic'")
                 
                 if st.button("✨ Enhance Prompt with AI", key="enhance_unified", use_container_width=True):
                     if not description_input or len(description_input.strip()) < 5:
@@ -1673,6 +1686,8 @@ def main():
                     with col_a:
                         st.markdown("#### 🖼️ Generate Image")
                         
+                        st.info(f"Style: {image_style_unified}")
+                        
                         if st.button("Generate Image with DALL-E 3", key="gen_enhanced_image", use_container_width=True):
                             if not has_openai:
                                 show_error("OpenAI API key required!")
@@ -1686,7 +1701,7 @@ def main():
                                             size=st.session_state.get('image_size', '1024x1024'),
                                             quality=st.session_state.get('image_quality', 'hd'),
                                             safe_mode=st.session_state.get('safe_mode', False),
-                                            photo_style=st.session_state.get('photo_style', 'Photorealistic (Real Photos)')
+                                            photo_style=image_style_unified  # Use the unified style selector
                                         )
                                         
                                         if image_url:
