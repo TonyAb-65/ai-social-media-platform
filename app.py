@@ -184,13 +184,13 @@ class ContentGenerator:
         self.api_key = ''.join(api_key.split())
         
         if not self.api_key.startswith('sk-'):
-            raise ValueError(f"Invalid API key format. OpenAI keys start with 'sk-'. Your key starts with: {self.api_key[:10]}")
+            raise ValueError("Invalid API key format. OpenAI keys start with 'sk-'")
         
         if len(self.api_key) < 20:
             raise ValueError(f"API key too short. Expected 40+ characters, got {len(self.api_key)}")
         
         self.client = OpenAI(api_key=self.api_key)
-        logger.info(f"ContentGenerator initialized with key: {self.api_key[:10]}...{self.api_key[-4:]}")
+        logger.info("ContentGenerator initialized")
     
     def test_connection(self) -> dict:
         """Test API connection"""
@@ -441,7 +441,7 @@ class PromptEngineer:
             raise ValueError(f"Invalid API key format. OpenAI keys start with 'sk-'")
         
         self.client = OpenAI(api_key=self.api_key)
-        logger.info(f"PromptEngineer initialized with key: {self.api_key[:10]}...{self.api_key[-4:]}")
+        logger.info("PromptEngineer initialized")
     
     def enhance_for_dalle(self, user_prompt: str) -> str:
         """Enhance user prompt for DALL-E 3 using GPT-4 with focus on photorealism when needed"""
@@ -517,7 +517,7 @@ class ReelGenerator:
         self.api_key = ''.join(api_key.split())
         
         if not self.api_key.startswith('r8_'):
-            raise ValueError(f"Invalid API key format. Replicate keys start with 'r8_'. Your key starts with: {self.api_key[:5]}")
+            raise ValueError("Invalid API key format. Replicate keys start with 'r8_'")
         
         os.environ["REPLICATE_API_TOKEN"] = self.api_key
         
@@ -525,7 +525,7 @@ class ReelGenerator:
         if self.openai_api_key:
             self.openai_client = OpenAI(api_key=self.openai_api_key)
         
-        logger.info(f"ReelGenerator initialized with Replicate API key: {self.api_key[:10]}...")
+        logger.info("ReelGenerator initialized")
     
     def test_connection(self) -> dict:
         """Test Replicate API connection"""
@@ -939,22 +939,12 @@ def main():
             
             if api_key:
                 cleaned_key = ''.join(api_key.split())
-                
-                with st.expander("🔍 Debug API Key", expanded=False):
-                    st.write(f"**Original length:** {len(api_key)} characters")
-                    st.write(f"**Cleaned length:** {len(cleaned_key)} characters")
-                    st.write(f"**Starts with:** {cleaned_key[:10] if len(cleaned_key) >= 10 else cleaned_key}")
-                    st.write(f"**Ends with:** {cleaned_key[-4:] if len(cleaned_key) >= 4 else cleaned_key}")
-                    
-                    if len(api_key) != len(cleaned_key):
-                        st.warning(f"⚠️ Removed {len(api_key) - len(cleaned_key)} hidden characters")
-                
+
                 if cleaned_key.startswith('sk-'):
                     st.session_state.api_key = cleaned_key
-                    st.success(f"✅ API key stored (length: {len(cleaned_key)})")
+                    st.success("✅ API key stored")
                 else:
                     st.error("❌ Invalid API key format. OpenAI keys start with 'sk-'")
-                    st.warning(f"Your key starts with: {cleaned_key[:10]}")
                     st.session_state.api_key = ""
                 
                 if st.session_state.get('api_key', ''):
@@ -980,7 +970,7 @@ def main():
                                     st.warning("**This is an authentication error. Possible causes:**")
                                     st.markdown("1. **Wrong API key** - Double check you copied the entire key")
                                     st.markdown("2. **Revoked key** - Generate a new key at https://platform.openai.com/api-keys")
-                                    st.markdown("3. **Hidden characters** - Check the 'Debug API Key' section above")
+                                    st.markdown("3. **Hidden characters** - Try re-entering the key")
                                     st.markdown("4. **Copy-paste issue** - Try typing the key manually")
                                     st.markdown("5. **OpenAI Outage** - Check https://status.openai.com")
             else:
@@ -1017,7 +1007,7 @@ def main():
                     st.warning("Get Replicate key at: https://replicate.com/account/api-tokens")
                     st.session_state.replicate_api_key = ""
                 else:
-                    st.warning(f"⚠️ Replicate keys usually start with 'r8_'. Your key starts with: {cleaned_rep_key[:3]}")
+                    st.warning("⚠️ Replicate keys usually start with 'r8_'")
                     st.session_state.replicate_api_key = cleaned_rep_key
                 
                 if st.session_state.get('replicate_api_key', '') and REPLICATE_AVAILABLE:
@@ -1445,7 +1435,7 @@ def main():
                             if not rep_key:
                                 show_error("Please enter your Replicate API key in the sidebar!")
                             elif not rep_key.startswith('r8_'):
-                                show_error(f"Invalid Replicate API key! Must start with 'r8_', yours starts with: {rep_key[:3]}")
+                                show_error("Invalid Replicate API key! Must start with 'r8_'")
                             elif not REPLICATE_AVAILABLE:
                                 show_error("Replicate library not installed. Add 'replicate' to requirements.txt")
                             else:

@@ -1,0 +1,7 @@
+.env
+*.db
+generated_images/
+generated_videos/
+__pycache__/
+.git/
+.gitignore

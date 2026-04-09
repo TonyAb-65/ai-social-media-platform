@@ -1,0 +1,5 @@
+.env
+*.db
+generated_images/
+generated_videos/
+__pycache__/
