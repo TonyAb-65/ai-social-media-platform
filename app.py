@@ -874,7 +874,7 @@ def show_info(message):
 def main():
     try:
         st.set_page_config(
-            page_title="AI Social Media Platform v2.0",
+            page_title="SocialPulse — AI Content Command",
             page_icon="🚀",
             layout="wide",
             initial_sidebar_state="expanded"
@@ -885,34 +885,292 @@ def main():
         
         st.markdown("""
         <style>
-        .main { background-color: #0e1117; }
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+        /* ── Design Tokens ── */
+        :root {
+            --bg-void: #06080f;
+            --bg-deep: #0a0e1a;
+            --bg-surface: #0f1424;
+            --bg-card: rgba(15, 22, 42, 0.65);
+            --border-dim: rgba(56, 103, 214, 0.12);
+            --border-glow: rgba(56, 139, 255, 0.25);
+            --accent-blue: #3b82f6;
+            --accent-cyan: #22d3ee;
+            --accent-indigo: #6366f1;
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+            --text-primary: #e8ecf4;
+            --text-secondary: #8494b2;
+            --text-muted: #4a5a78;
+            --glow-card: 0 4px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.03);
+            --radius: 14px;
+            --radius-sm: 8px;
+        }
+
+        /* ── Base ── */
+        .main .block-container { max-width: 1200px; }
+        .stApp, .main, [data-testid="stAppViewContainer"],
+        [data-testid="stHeader"], section[data-testid="stSidebar"] > div {
+            background-color: var(--bg-void) !important;
+        }
+        section[data-testid="stSidebar"] {
+            background-color: #080c18 !important;
+            border-right: 1px solid var(--border-dim) !important;
+        }
+        section[data-testid="stSidebar"] * {
+            color: var(--text-secondary) !important;
+        }
+        section[data-testid="stSidebar"] h1,
+        section[data-testid="stSidebar"] h2,
+        section[data-testid="stSidebar"] h3 {
+            color: var(--text-primary) !important;
+        }
+        section[data-testid="stSidebar"] label {
+            color: var(--text-secondary) !important;
+            font-weight: 500 !important;
+        }
+        section[data-testid="stSidebar"] .stRadio label span {
+            font-weight: 500 !important;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Outfit', sans-serif !important;
+            color: var(--text-primary) !important;
+            letter-spacing: -0.02em !important;
+        }
+        p, span, li, div {
+            color: var(--text-secondary);
+        }
+
+        /* ── Buttons ── */
         .stButton>button {
             width: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 0.75rem;
-            border-radius: 8px;
-            font-weight: 600;
-            transition: all 0.3s;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-indigo)) !important;
+            color: white !important;
+            border: none !important;
+            padding: 0.75rem 1.5rem !important;
+            border-radius: var(--radius-sm) !important;
+            font-family: 'Outfit', sans-serif !important;
+            font-weight: 600 !important;
+            font-size: 0.9rem !important;
+            letter-spacing: 0.01em;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .stButton>button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 30px rgba(59, 130, 246, 0.3);
+        }
+
+        /* ── Stat Cards ── */
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius);
+            padding: 22px 24px;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: var(--glow-card);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .stat-card:hover {
+            border-color: var(--border-glow);
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 0 20px rgba(59,130,246,0.15), 0 0 60px rgba(59,130,246,0.05), var(--glow-card);
         }
-        .metric-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 1.5rem;
-            border-radius: 12px;
-            color: white;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        .stat-card .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 14px;
+            font-size: 1.2rem;
         }
+        .stat-card .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 6px;
+        }
+        .stat-card .stat-value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.9rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            line-height: 1;
+            color: var(--text-primary);
+        }
+        .stat-card .stat-change {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            margin-top: 8px;
+            padding: 3px 8px;
+            border-radius: 20px;
+        }
+        .stat-change.up { color: var(--accent-emerald); background: rgba(16,185,129,0.1); }
+        .stat-change.down { color: var(--accent-rose); background: rgba(244,63,94,0.1); }
+
+        /* Card accent borders */
+        .stat-card.blue::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent-blue), transparent); }
+        .stat-card.indigo::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent-indigo), transparent); }
+        .stat-card.emerald::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent-emerald), transparent); }
+        .stat-card.amber::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent-amber), transparent); }
+
+        .icon-blue { background: rgba(59,130,246,0.12); color: var(--accent-blue); }
+        .icon-indigo { background: rgba(99,102,241,0.12); color: var(--accent-indigo); }
+        .icon-emerald { background: rgba(16,185,129,0.12); color: var(--accent-emerald); }
+        .icon-amber { background: rgba(245,158,11,0.12); color: var(--accent-amber); }
+
+        /* ── Content Cards ── */
+        .content-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: var(--glow-card);
+            overflow: hidden;
+        }
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-dim);
+        }
+        .card-header h4 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 0;
+            color: var(--text-primary);
+        }
+        .card-badge {
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: rgba(59,130,246,0.1);
+            color: var(--accent-blue);
+            border: 1px solid rgba(59,130,246,0.15);
+        }
+        .card-body { padding: 24px; }
+
+        /* ── Header Banner ── */
+        .app-header {
+            background: linear-gradient(135deg, rgba(15, 22, 42, 0.9), rgba(10, 14, 26, 0.95));
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius);
+            padding: 2rem 2.5rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .app-header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-indigo), var(--accent-cyan));
+        }
+        .app-header h1 {
+            font-family: 'Outfit', sans-serif !important;
+            font-weight: 800 !important;
+            font-size: 1.6rem !important;
+            background: linear-gradient(135deg, #60a5fa, #818cf8, #22d3ee);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 0 0 0.3rem 0 !important;
+        }
+        .app-header p {
+            color: var(--text-muted) !important;
+            font-size: 0.85rem;
+            margin: 0;
+            letter-spacing: 0.02em;
+        }
+
+        /* ── Section Headers ── */
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
+            margin-bottom: 1rem;
+        }
+
+        /* ── Expander styling ── */
+        .streamlit-expanderHeader {
+            background: var(--bg-card) !important;
+            border: 1px solid var(--border-dim) !important;
+            border-radius: var(--radius-sm) !important;
+            color: var(--text-primary) !important;
+            font-family: 'Outfit', sans-serif !important;
+            font-weight: 600 !important;
+        }
+
+        /* ── Dataframe styling ── */
+        .stDataFrame {
+            border-radius: var(--radius-sm) !important;
+        }
+
+        /* ── Inputs ── */
+        .stTextInput > div > div > input,
+        .stTextArea > div > div > textarea,
+        .stSelectbox > div > div,
+        .stNumberInput > div > div > input {
+            background-color: rgba(6, 8, 15, 0.5) !important;
+            border: 1px solid var(--border-dim) !important;
+            border-radius: var(--radius-sm) !important;
+            color: var(--text-primary) !important;
+        }
+        .stTextInput > div > div > input:focus,
+        .stTextArea > div > div > textarea:focus {
+            border-color: var(--accent-blue) !important;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.1) !important;
+        }
+
+        /* ── Tabs ── */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 2px;
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 4px;
+            border: 1px solid var(--border-dim);
+        }
+        .stTabs [data-baseweb="tab"] {
+            border-radius: 6px !important;
+            color: var(--text-secondary) !important;
+            font-family: 'Outfit', sans-serif !important;
+            font-weight: 500 !important;
+        }
+        .stTabs [aria-selected="true"] {
+            background: rgba(59,130,246,0.1) !important;
+            color: var(--accent-blue) !important;
+        }
+
+        /* ── Alerts ── */
+        .stAlert { border-radius: var(--radius-sm) !important; }
         </style>
         """, unsafe_allow_html=True)
         
         # SIDEBAR
         with st.sidebar:
-            st.markdown("## ⚙️ Settings")
+            st.markdown("""
+            <div style="padding: 4px 0 16px; border-bottom: 1px solid rgba(56,103,214,0.12); margin-bottom: 16px;">
+                <h1 style="font-family: 'Outfit', sans-serif !important; font-weight: 800 !important; font-size: 1.3rem !important;
+                    background: linear-gradient(135deg, #60a5fa, #818cf8, #22d3ee); -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent; background-clip: text; margin: 0 !important;">SocialPulse</h1>
+                <span style="font-size: 0.68rem; color: #4a5a78 !important; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 500;">AI Content Command</span>
+            </div>
+            """, unsafe_allow_html=True)
+            st.markdown("## Settings")
             
             api_key_from_secrets = st.secrets.get("OPENAI_API_KEY", "")
             
@@ -1035,16 +1293,16 @@ def main():
                 st.code("Add 'replicate' to requirements.txt")
             
             st.markdown("---")
-            st.markdown("### 📊 Navigation")
-            
+            st.markdown("### Navigation")
+
             view = st.radio(
                 "Select View",
                 ["📊 Overview", "🎯 Campaigns", "✏️ Content Lab", "🖼️ Assets", "🎬 Videos/Reels", "📈 Insights", "📅 Scheduled Posts"],
                 label_visibility="collapsed"
             )
-            
+
             st.markdown("---")
-            st.markdown("### 🎨 Preferences")
+            st.markdown("### Preferences")
             
             selected_language = st.selectbox(
                 "Content Language",
@@ -1056,7 +1314,7 @@ def main():
             
             theme = st.selectbox("Theme", ["Dark", "Light"], index=0)
             
-            st.markdown("### 🖼️ Image Settings")
+            st.markdown("### Image Settings")
             image_size = st.selectbox(
                 "Image Size",
                 ["1024x1024", "1024x1792", "1792x1024"],
@@ -1091,9 +1349,9 @@ def main():
             st.session_state.auto_save_images = auto_save_images
             
             st.markdown("---")
-            st.markdown("### ℹ️ About")
+            st.markdown("### About")
             st.markdown("""
-            **AI Social Platform v2.0**
+            **SocialPulse v2.0**
             
             **Powered by:**
             - OpenAI GPT-4 & DALL-E 3
@@ -1123,7 +1381,7 @@ def main():
             """)
             
             st.markdown("---")
-            st.markdown("### 💡 Quick Tips")
+            st.markdown("### Quick Tips")
             st.markdown("""
             **Upload Product Photos:**
             
@@ -1172,103 +1430,120 @@ def main():
         
         # HEADER
         st.markdown("""
-        <div style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); 
-                    padding: 2rem; border-radius: 12px; margin-bottom: 2rem;">
-            <h1 style="color: white; margin: 0;">🚀 AI Social Media Platform v2.0</h1>
-            <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0;">
-                Professional Content Generation & Marketing Automation
-            </p>
+        <div class="app-header">
+            <h1>SocialPulse — AI Content Command</h1>
+            <p>Professional Content Generation & Marketing Automation</p>
         </div>
         """, unsafe_allow_html=True)
         
         # VIEW: OVERVIEW
         if "Overview" in view:
-            st.markdown("### 📊 Dashboard Overview")
-            
+            st.markdown('<div class="section-title">Dashboard Overview</div>', unsafe_allow_html=True)
+
+            scheduled_count = len(get_scheduled_posts(conn))
+            saved_images_count = len(get_all_images(conn))
+
             col1, col2, col3, col4 = st.columns(4)
-            
+
             with col1:
                 st.markdown("""
-                <div class="metric-card">
-                    <h3 style="margin: 0; font-size: 2rem;">156</h3>
-                    <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Total Posts</p>
+                <div class="stat-card blue">
+                    <div class="stat-icon icon-blue">&#x1F4CB;</div>
+                    <div class="stat-label">Total Posts</div>
+                    <div class="stat-value">156</div>
+                    <span class="stat-change up">&#x25B2; 12%</span>
                 </div>
                 """, unsafe_allow_html=True)
-            
+
             with col2:
-                scheduled_count = len(get_scheduled_posts(conn))
                 st.markdown(f"""
-                <div class="metric-card">
-                    <h3 style="margin: 0; font-size: 2rem;">{scheduled_count}</h3>
-                    <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Scheduled Posts</p>
+                <div class="stat-card indigo">
+                    <div class="stat-icon icon-indigo">&#x1F5BC;</div>
+                    <div class="stat-label">Generated Images</div>
+                    <div class="stat-value">{saved_images_count}</div>
+                    <span class="stat-change up">&#x25B2; 8%</span>
                 </div>
                 """, unsafe_allow_html=True)
-            
+
             with col3:
-                saved_images_count = len(get_all_images(conn))
                 st.markdown(f"""
-                <div class="metric-card">
-                    <h3 style="margin: 0; font-size: 2rem;">{saved_images_count}</h3>
-                    <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Images</p>
+                <div class="stat-card emerald">
+                    <div class="stat-icon icon-emerald">&#x1F4C5;</div>
+                    <div class="stat-label">Scheduled Posts</div>
+                    <div class="stat-value">{scheduled_count}</div>
+                    <span class="stat-change up">&#x25B2; 5%</span>
                 </div>
                 """, unsafe_allow_html=True)
-            
+
             with col4:
-                saved_videos_count = len(get_all_videos(conn))
-                st.markdown(f"""
-                <div class="metric-card">
-                    <h3 style="margin: 0; font-size: 2rem;">{saved_videos_count}</h3>
-                    <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Videos/Reels</p>
+                st.markdown("""
+                <div class="stat-card amber">
+                    <div class="stat-icon icon-amber">&#x26A1;</div>
+                    <div class="stat-label">API Credits Used</div>
+                    <div class="stat-value">2,847</div>
+                    <span class="stat-change down">&#x25BC; 3%</span>
                 </div>
                 """, unsafe_allow_html=True)
             
             st.markdown("<br>", unsafe_allow_html=True)
-            
+
             col1, col2 = st.columns(2)
-            
+
             with col1:
-                st.markdown("#### 📈 Engagement Over Time")
+                st.markdown("""<div class="content-card"><div class="card-header"><h4>Engagement Over Time</h4><span class="card-badge">Last 30 days</span></div><div class="card-body" style="padding:16px 24px 24px;">""", unsafe_allow_html=True)
                 dates = pd.date_range(start='2024-01-01', periods=30, freq='D')
                 engagement = [random.randint(1000, 5000) for _ in range(30)]
-                
+
                 fig = go.Figure()
                 fig.add_trace(go.Scatter(
                     x=dates, y=engagement,
                     mode='lines+markers',
                     name='Engagement',
-                    line=dict(color='#667eea', width=3),
-                    marker=dict(size=8)
+                    line=dict(color='#3b82f6', width=3),
+                    marker=dict(size=6, color='#3b82f6'),
+                    fill='tozeroy',
+                    fillcolor='rgba(59,130,246,0.08)'
                 ))
                 fig.update_layout(
                     plot_bgcolor='rgba(0,0,0,0)',
                     paper_bgcolor='rgba(0,0,0,0)',
-                    font_color='white',
-                    height=300
+                    font=dict(color='#8494b2', family='DM Sans'),
+                    height=280,
+                    margin=dict(l=0, r=0, t=10, b=0),
+                    xaxis=dict(gridcolor='rgba(56,103,214,0.08)', showline=False),
+                    yaxis=dict(gridcolor='rgba(56,103,214,0.08)', showline=False),
+                    showlegend=False
                 )
                 st.plotly_chart(fig, use_container_width=True)
-            
+                st.markdown("</div></div>", unsafe_allow_html=True)
+
             with col2:
-                st.markdown("#### 🎯 Platform Distribution")
+                st.markdown("""<div class="content-card"><div class="card-header"><h4>Platform Distribution</h4><span class="card-badge">All time</span></div><div class="card-body" style="padding:16px 24px 24px;">""", unsafe_allow_html=True)
                 platforms = ['Instagram', 'TikTok', 'Facebook', 'LinkedIn']
                 values = [35, 30, 20, 15]
-                
+
                 fig = go.Figure(data=[go.Pie(
                     labels=platforms,
                     values=values,
-                    hole=0.4,
-                    marker=dict(colors=['#667eea', '#764ba2', '#f093fb', '#4facfe'])
+                    hole=0.45,
+                    marker=dict(colors=['#3b82f6', '#6366f1', '#22d3ee', '#10b981']),
+                    textfont=dict(color='#e8ecf4', family='DM Sans'),
                 )])
                 fig.update_layout(
                     plot_bgcolor='rgba(0,0,0,0)',
                     paper_bgcolor='rgba(0,0,0,0)',
-                    font_color='white',
-                    height=300
+                    font=dict(color='#8494b2', family='DM Sans'),
+                    height=280,
+                    margin=dict(l=0, r=0, t=10, b=0),
+                    showlegend=True,
+                    legend=dict(font=dict(color='#8494b2'))
                 )
                 st.plotly_chart(fig, use_container_width=True)
+                st.markdown("</div></div>", unsafe_allow_html=True)
         
         # VIEW: CAMPAIGNS
         elif "Campaigns" in view:
-            st.markdown("### 🎯 Campaign Management")
+            st.markdown('<div class="section-title">Campaign Management</div>', unsafe_allow_html=True)
             
             col1, col2 = st.columns([2, 1])
             
@@ -1300,7 +1575,7 @@ def main():
         
         # VIEW: CONTENT LAB
         elif "Content Lab" in view:
-            st.markdown("### ✏️ AI Content Generation Lab")
+            st.markdown('<div class="section-title">AI Content Generation Lab</div>', unsafe_allow_html=True)
             
             with st.expander("📤 Upload Product Image → Create Post & Reel", expanded=True):
                 st.markdown("Upload your product image and let AI create marketing posts and reels!")
@@ -2172,7 +2447,7 @@ def main():
         
         # VIEW: ASSETS
         elif "Assets" in view:
-            st.markdown("### 🖼️ Image Assets Library")
+            st.markdown('<div class="section-title">Image Assets Library</div>', unsafe_allow_html=True)
             
             saved_images = get_all_images(conn)
             
@@ -2231,7 +2506,7 @@ def main():
         
         # VIEW: VIDEOS/REELS
         elif "Videos/Reels" in view:
-            st.markdown("### 🎬 Videos & Reels Library")
+            st.markdown('<div class="section-title">Videos & Reels Library</div>', unsafe_allow_html=True)
             
             tab1, tab2 = st.tabs(["📚 Video Library", "➕ Create New Video"])
             
@@ -2430,7 +2705,7 @@ def main():
         
         # VIEW: INSIGHTS
         elif "Insights" in view:
-            st.markdown("### 📈 Analytics & Insights")
+            st.markdown('<div class="section-title">Analytics & Insights</div>', unsafe_allow_html=True)
             
             col1, col2 = st.columns(2)
             
@@ -2454,7 +2729,7 @@ def main():
         
         # VIEW: SCHEDULED POSTS
         elif "Scheduled Posts" in view:
-            st.markdown("### 📅 Scheduled Posts")
+            st.markdown('<div class="section-title">Scheduled Posts</div>', unsafe_allow_html=True)
             
             scheduled_posts = get_scheduled_posts(conn)
             
