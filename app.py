@@ -1923,24 +1923,24 @@ def main():
                     col1, col2 = st.columns(2)
                     
                     with col1:
-                        with st.expander("🖼️ View Enhanced Image Prompt"):
-                            st.text_area(
-                                "For DALL-E 3",
-                                st.session_state.enhanced_image_prompt,
-                                height=150,
-                                key="show_enhanced_image",
-                                disabled=True
-                            )
-                    
+                        st.markdown("**🖼️ Enhanced Image Prompt:**")
+                        st.text_area(
+                            "For DALL-E 3",
+                            st.session_state.enhanced_image_prompt,
+                            height=150,
+                            key="show_enhanced_image",
+                            disabled=True
+                        )
+
                     with col2:
-                        with st.expander("🎬 View Enhanced Video Prompt"):
-                            st.text_area(
-                                "For Video Models",
-                                st.session_state.enhanced_video_prompt,
-                                height=150,
-                                key="show_enhanced_video",
-                                disabled=True
-                            )
+                        st.markdown("**🎬 Enhanced Video Prompt:**")
+                        st.text_area(
+                            "For Video Models",
+                            st.session_state.enhanced_video_prompt,
+                            height=150,
+                            key="show_enhanced_video",
+                            disabled=True
+                        )
                     
                     st.markdown("---")
                     st.markdown("### 🎯 Choose What to Generate")
@@ -2111,9 +2111,9 @@ def main():
                                     with st.spinner("🎨 Creating AI image..."):
                                         enhanced_prompt = engineer.enhance_for_dalle(image_description)
                                         
-                                        with st.expander("🔍 View Enhanced Prompt"):
-                                            st.markdown(f"**Original:** {image_description}")
-                                            st.markdown(f"**Enhanced:** {enhanced_prompt}")
+                                        st.markdown("**🔍 Enhanced Prompt:**")
+                                        st.markdown(f"**Original:** {image_description}")
+                                        st.markdown(f"**Enhanced:** {enhanced_prompt}")
                                         
                                         image_size = st.session_state.get('image_size', '1024x1024')
                                         image_quality = st.session_state.get('image_quality', 'hd')
@@ -2168,11 +2168,11 @@ def main():
                                 st.markdown("- Remove words like 'realistic', 'photograph', 'professional'")
                                 st.markdown("- Use artistic terms: 'digital art', 'illustration', 'painting'")
                                 
-                                with st.expander("🔍 What Triggered the Filter?"):
-                                    st.write("**Your prompt:**")
-                                    st.code(image_description if 'image_description' in locals() else "N/A")
-                                    st.write("**Enhanced prompt:**")
-                                    st.code(enhanced_prompt if 'enhanced_prompt' in locals() else "N/A")
+                                st.markdown("**🔍 What Triggered the Filter?**")
+                                st.write("**Your prompt:**")
+                                st.code(image_description if 'image_description' in locals() else "N/A")
+                                st.write("**Enhanced prompt:**")
+                                st.code(enhanced_prompt if 'enhanced_prompt' in locals() else "N/A")
                             else:
                                 show_error(f"Generation failed: {str(e)}")
             
@@ -2229,24 +2229,24 @@ def main():
                     col1, col2 = st.columns(2)
                     
                     with col1:
-                        with st.expander("View Enhanced Image Prompt"):
-                            st.text_area(
-                                "For DALL-E 3",
-                                st.session_state.enhanced_image_prompt,
-                                height=150,
-                                key="show_enhanced_image",
-                                disabled=True
-                            )
-                    
+                        st.markdown("**Enhanced Image Prompt:**")
+                        st.text_area(
+                            "For DALL-E 3",
+                            st.session_state.enhanced_image_prompt,
+                            height=150,
+                            key="show_enhanced_image",
+                            disabled=True
+                        )
+
                     with col2:
-                        with st.expander("View Enhanced Video Prompt"):
-                            st.text_area(
-                                "For Video Models",
-                                st.session_state.enhanced_video_prompt,
-                                height=150,
-                                key="show_enhanced_video",
-                                disabled=True
-                            )
+                        st.markdown("**Enhanced Video Prompt:**")
+                        st.text_area(
+                            "For Video Models",
+                            st.session_state.enhanced_video_prompt,
+                            height=150,
+                            key="show_enhanced_video",
+                            disabled=True
+                        )
                     
                     st.markdown("---")
                     st.markdown("### Choose What to Generate")
@@ -2402,8 +2402,8 @@ def main():
                         try:
                             enhanced_prompt = engineer.enhance_for_dalle(image_description)
                             
-                            with st.expander("📝 View Enhanced Prompt"):
-                                st.text_area("Enhanced Prompt", enhanced_prompt, height=150)
+                            st.markdown("**📝 Enhanced Prompt:**")
+                            st.text_area("Enhanced Prompt", enhanced_prompt, height=150)
                             
                             image_url = generator.generate_image(enhanced_prompt, 
                                                                 size=st.session_state.get('image_size', '1024x1024'),
